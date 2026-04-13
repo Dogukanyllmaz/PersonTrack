@@ -58,6 +58,7 @@ public class PersonsController : ControllerBase
             .Include(p => p.RelationshipsAsSource).ThenInclude(r => r.RelatedPerson)
             .Include(p => p.RelationshipsAsTarget).ThenInclude(r => r.Person)
             .Include(p => p.Documents).ThenInclude(d => d.UploadedBy)
+            .Include(p => p.Tags).ThenInclude(pt => pt.Tag)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (person == null) return NotFound();
@@ -431,6 +432,13 @@ public class PersonsController : ControllerBase
         Documents = p.Documents
             .OrderByDescending(d => d.UploadedAt)
             .Select(MapDocToResponse)
+            .ToList(),
+        Tags = p.Tags
+            .Select(pt => new PersonTagResponse
+            {
+                TagId = pt.TagId,
+                Tag = pt.Tag != null ? new TagInfoResponse { Id = pt.Tag.Id, Name = pt.Tag.Name, Color = pt.Tag.Color } : null
+            })
             .ToList()
     };
 

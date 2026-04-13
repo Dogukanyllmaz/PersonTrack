@@ -14,6 +14,9 @@ import Tasks from './pages/Tasks';
 import Timeline from './pages/Timeline';
 import Admin from './pages/Admin';
 import PersonDetail from './pages/PersonDetail';
+import Notifications from './pages/Notifications';
+import Reminders from './pages/Reminders';
+import ActivityLog from './pages/ActivityLog';
 
 function AppRoutes() {
   return (
@@ -43,6 +46,15 @@ function AppRoutes() {
       } />
       <Route path="/timeline" element={
         <PrivateRoute><Layout><Timeline /></Layout></PrivateRoute>
+      } />
+      <Route path="/notifications" element={
+        <PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>
+      } />
+      <Route path="/reminders" element={
+        <PrivateRoute><Layout><Reminders /></Layout></PrivateRoute>
+      } />
+      <Route path="/activity-log" element={
+        <PrivateRoute adminOnly><Layout><ActivityLog /></Layout></PrivateRoute>
       } />
       <Route path="/admin" element={
         <PrivateRoute adminOnly><Layout><Admin /></Layout></PrivateRoute>

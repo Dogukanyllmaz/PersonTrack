@@ -35,18 +35,18 @@ public class TasksController : ControllerBase
     private bool IsPrivileged => CurrentRole == "Admin" || CurrentRole == "Manager";
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? personId, [FromQuery] string? status)
+    public async Task<IActionResult> GetAll([FromQuery] int? personId, [FromQuery] string? status, [FromQuery] string? priority)
     {
         var query = _db.PersonTasks
             .Include(t => t.Person)
+            .Include(t => t.Comments).ThenInclude(c => c.CreatedBy)
             .AsQueryable();
 
-        // Normal kullanıcı: sadece kendi kişisine atanmış görevler
         if (!IsPrivileged)
         {
             var pid = CurrentPersonId;
             if (!pid.HasValue)
-                return Ok(Array.Empty<object>()); // PersonId bağlı değilse boş döndür
+                return Ok(Array.Empty<object>());
             query = query.Where(t => t.PersonId == pid.Value);
         }
         else
@@ -58,6 +58,9 @@ public class TasksController : ControllerBase
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(t => t.Status == status);
 
+        if (!string.IsNullOrWhiteSpace(priority))
+            query = query.Where(t => t.Priority == priority);
+
         var tasks = await query.OrderByDescending(t => t.AssignedDate).ToListAsync();
         return Ok(tasks.Select(MapToResponse));
     }
@@ -67,6 +70,7 @@ public class TasksController : ControllerBase
     {
         var task = await _db.PersonTasks
             .Include(t => t.Person)
+            .Include(t => t.Comments).ThenInclude(c => c.CreatedBy)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (task == null) return NotFound();
         return Ok(MapToResponse(task));
@@ -85,6 +89,8 @@ public class TasksController : ControllerBase
             Title = req.Title,
             Description = req.Description,
             AssignedDate = req.AssignedDate,
+            DueDate = req.DueDate,
+            Priority = req.Priority,
             Status = "Active",
             CreatedById = CurrentUserId
         };
@@ -95,6 +101,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Update(int id, [FromBody] TaskUpdateRequest req)
     {
         var task = await _db.PersonTasks.FindAsync(id);
@@ -105,6 +112,8 @@ public class TasksController : ControllerBase
         task.Status = req.Status;
         task.AssignedDate = req.AssignedDate;
         task.CompletedDate = req.CompletedDate;
+        task.DueDate = req.DueDate;
+        task.Priority = req.Priority;
         await _db.SaveChangesAsync();
         await _db.Entry(task).Reference(t => t.Person).LoadAsync();
         return Ok(MapToResponse(task));
@@ -122,11 +131,72 @@ public class TasksController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(int id)
     {
         var task = await _db.PersonTasks.FindAsync(id);
         if (task == null) return NotFound();
         _db.PersonTasks.Remove(task);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // Comments
+    [HttpGet("{id}/comments")]
+    public async Task<IActionResult> GetComments(int id)
+    {
+        var comments = await _db.TaskComments
+            .Include(c => c.CreatedBy)
+            .Where(c => c.TaskId == id)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => new TaskCommentResponse
+            {
+                Id = c.Id,
+                Content = c.Content,
+                CreatedByName = c.CreatedBy != null ? c.CreatedBy.Username : "?",
+                CreatedAt = c.CreatedAt
+            })
+            .ToListAsync();
+        return Ok(comments);
+    }
+
+    [HttpPost("{id}/comments")]
+    public async Task<IActionResult> AddComment(int id, [FromBody] CommentRequest req)
+    {
+        if (!await _db.PersonTasks.AnyAsync(t => t.Id == id))
+            return NotFound();
+
+        var comment = new TaskComment
+        {
+            TaskId = id,
+            Content = req.Text,
+            CreatedById = CurrentUserId
+        };
+        _db.TaskComments.Add(comment);
+        await _db.SaveChangesAsync();
+        await _db.Entry(comment).Reference(c => c.CreatedBy).LoadAsync();
+
+        return Ok(new TaskCommentResponse
+        {
+            Id = comment.Id,
+            Content = comment.Content,
+            CreatedByName = comment.CreatedBy?.Username ?? "?",
+            CreatedAt = comment.CreatedAt
+        });
+    }
+
+    [HttpDelete("{taskId}/comments/{commentId}")]
+    public async Task<IActionResult> DeleteComment(int taskId, int commentId)
+    {
+        var comment = await _db.TaskComments
+            .FirstOrDefaultAsync(c => c.Id == commentId && c.TaskId == taskId);
+        if (comment == null) return NotFound();
+
+        // Only owner or privileged can delete
+        if (comment.CreatedById != CurrentUserId && !IsPrivileged)
+            return Forbid();
+
+        _db.TaskComments.Remove(comment);
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -139,8 +209,19 @@ public class TasksController : ControllerBase
         Title = t.Title,
         Description = t.Description,
         Status = t.Status,
+        Priority = t.Priority,
         AssignedDate = t.AssignedDate,
+        DueDate = t.DueDate,
         CompletedDate = t.CompletedDate,
-        CreatedAt = t.CreatedAt
+        CreatedAt = t.CreatedAt,
+        Comments = t.Comments?.Select(c => new TaskCommentResponse
+        {
+            Id = c.Id,
+            Content = c.Content,
+            CreatedByName = c.CreatedBy?.Username ?? "?",
+            CreatedAt = c.CreatedAt
+        }).ToList() ?? new()
     };
 }
+
+public record CommentRequest(string Text);

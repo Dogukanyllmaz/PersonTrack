@@ -73,6 +73,7 @@ public class MeetingsController : ControllerBase
             .Include(m => m.Documents).ThenInclude(d => d.UploadedBy)
             .Include(m => m.LinksAsSource).ThenInclude(l => l.LinkedMeeting)
             .Include(m => m.LinksAsTarget).ThenInclude(l => l.Meeting)
+            .Include(m => m.Tags).ThenInclude(mt => mt.Tag)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (meeting == null) return NotFound();
@@ -421,6 +422,13 @@ public class MeetingsController : ControllerBase
                     LinkType = l.LinkType,
                     IsReverse = true
                 }))
+            .ToList();
+        r.Tags = m.Tags
+            .Select(mt => new MeetingTagResponse
+            {
+                TagId = mt.TagId,
+                Tag = mt.Tag != null ? new TagInfoResponse { Id = mt.Tag.Id, Name = mt.Tag.Name, Color = mt.Tag.Color } : null
+            })
             .ToList();
         return r;
     }

@@ -42,6 +42,22 @@ public class TagsController : ControllerBase
         return Ok(new { tag.Id, tag.Name, tag.Color });
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> Update(int id, [FromBody] TagRequest req)
+    {
+        var tag = await _db.Tags.FindAsync(id);
+        if (tag == null) return NotFound();
+
+        if (await _db.Tags.AnyAsync(t => t.Name == req.Name && t.Id != id))
+            return BadRequest(new { message = "Bu isimde başka bir etiket zaten var." });
+
+        tag.Name = req.Name;
+        if (req.Color != null) tag.Color = req.Color;
+        await _db.SaveChangesAsync();
+        return Ok(new { tag.Id, tag.Name, tag.Color });
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)

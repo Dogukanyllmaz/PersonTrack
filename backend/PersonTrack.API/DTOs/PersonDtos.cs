@@ -43,6 +43,7 @@ public class PersonResponse
     public DateTime CreatedAt { get; set; }
     public List<RelationshipResponse> Relationships { get; set; } = new();
     public List<PersonDocumentResponse> Documents { get; set; } = new();
+    public List<PersonTagResponse> Tags { get; set; } = new();
 }
 
 public class RelationshipResponse
@@ -56,6 +57,19 @@ public class RelationshipResponse
 }
 
 public record AddRelationshipRequest(int RelatedPersonId, string RelationshipType, string? Notes);
+
+public class PersonTagResponse
+{
+    public int TagId { get; set; }
+    public TagInfoResponse? Tag { get; set; }
+}
+
+public class TagInfoResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Color { get; set; } = "#6366f1";
+}
 
 public class PersonDocumentResponse
 {

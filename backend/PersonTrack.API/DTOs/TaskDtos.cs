@@ -4,7 +4,9 @@ public record TaskCreateRequest(
     int PersonId,
     string Title,
     string? Description,
-    DateTime AssignedDate
+    DateTime AssignedDate,
+    DateTime? DueDate,
+    string Priority = "Medium"
 );
 
 public record TaskUpdateRequest(
@@ -12,7 +14,9 @@ public record TaskUpdateRequest(
     string? Description,
     string Status,
     DateTime AssignedDate,
-    DateTime? CompletedDate
+    DateTime? CompletedDate,
+    DateTime? DueDate,
+    string Priority = "Medium"
 );
 
 public class TaskResponse
@@ -23,7 +27,18 @@ public class TaskResponse
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Priority { get; set; } = "Medium";
     public DateTime AssignedDate { get; set; }
+    public DateTime? DueDate { get; set; }
     public DateTime? CompletedDate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public List<TaskCommentResponse> Comments { get; set; } = new();
+}
+
+public class TaskCommentResponse
+{
+    public int Id { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public string CreatedByName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }

@@ -7,6 +7,7 @@ import {
   getTasks, createTask, completeTask, deleteTask,
   getPersonAccount, createAccountForPerson, setUserRole, toggleUserActive,
   adminResetPassword, generateOtp,
+  getTags, addTagToPerson, removeTagFromPerson,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import PhoneInput from '../components/PhoneInput';
@@ -68,6 +69,11 @@ export default function PersonDetail() {
   const [taskForm, setTaskForm] = useState({ title: '', description: '', assignedDate: '' });
   const [addingTask, setAddingTask] = useState(false);
 
+  // tags
+  const [allTags, setAllTags] = useState([]);
+  const [personTags, setPersonTags] = useState([]);
+  const [tagAdding, setTagAdding] = useState(false);
+
   // account (admin only)
   const [account, setAccount] = useState(null);
   const [accountLoading, setAccountLoading] = useState(false);
@@ -83,7 +89,22 @@ export default function PersonDetail() {
     loadTasks();
     getPersons().then(r => setAllPersons(r.data.filter(p => p.id !== parseInt(id))));
     if (isAdmin) loadAccount();
+    getTags().then(r => setAllTags(r.data));
   }, [id]);
+
+  async function loadPersonTags() {
+    // tags are included in person.tags from the API
+  }
+
+  async function handleAddTag(tagId) {
+    setTagAdding(true);
+    try { await addTagToPerson(id, tagId); await loadPerson(); } catch {}
+    finally { setTagAdding(false); }
+  }
+
+  async function handleRemoveTag(tagId) {
+    try { await removeTagFromPerson(id, tagId); await loadPerson(); } catch {}
+  }
 
   async function loadPerson() {
     try {
@@ -324,6 +345,26 @@ export default function PersonDetail() {
                 )}
                 {person.email && <p className="text-sm text-gray-400 mt-1">✉ {person.email}</p>}
                 {person.phone && <p className="text-sm text-gray-400">📞 {person.phone}</p>}
+                {/* Tags */}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(person.tags || []).map(pt => (
+                    <span key={pt.tagId} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: pt.tag?.color || '#6366f1' }}>
+                      {pt.tag?.name}
+                      <button onClick={() => handleRemoveTag(pt.tagId)} className="hover:opacity-70 leading-none">×</button>
+                    </span>
+                  ))}
+                  {allTags.filter(t => !(person.tags || []).some(pt => pt.tagId === t.id)).length > 0 && (
+                    <select onChange={e => { if (e.target.value) handleAddTag(parseInt(e.target.value)); e.target.value = ''; }}
+                      className="text-xs border border-dashed border-gray-300 rounded-full px-2 py-0.5 text-gray-400 bg-transparent cursor-pointer"
+                      disabled={tagAdding}>
+                      <option value="">+ Etiket</option>
+                      {allTags.filter(t => !(person.tags || []).some(pt => pt.tagId === t.id)).map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 shrink-0">
                 {editing ? (

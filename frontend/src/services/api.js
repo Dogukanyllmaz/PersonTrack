@@ -12,21 +12,78 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login on 401
+// ── Refresh token logic ────────────────────────────────────────────────────
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async (err) => {
+    const original = err.config;
+
+    if (err.response?.status === 401 && !original._retry) {
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      // No refresh token → go to login
+      if (!refreshToken) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(err);
+      }
+
+      if (isRefreshing) {
+        // Queue this request until refresh is done
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        }).catch(e => Promise.reject(e));
+      }
+
+      original._retry = true;
+      isRefreshing = true;
+
+      try {
+        const res = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+        const { token, refreshToken: newRefreshToken } = res.data;
+
+        localStorage.setItem('token', token);
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+        processQueue(null, token);
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(err);
   }
 );
 
 // Auth
 export const login = (data) => api.post('/auth/login', data);
+export const refreshTokenCall = (refreshToken) => api.post('/auth/refresh', { refreshToken });
+export const logoutApi = (refreshToken) => api.post('/auth/logout', { refreshToken });
 export const getMe = () => api.get('/auth/me');
 export const changePassword = (data) => api.post('/auth/change-password', data);
 
@@ -110,6 +167,11 @@ export const updateTask = (id, data) => api.put(`/tasks/${id}`, data);
 export const completeTask = (id) => api.post(`/tasks/${id}/complete`);
 export const deleteTask = (id) => api.delete(`/tasks/${id}`);
 
+// Task comments
+export const getTaskComments = (taskId) => api.get(`/tasks/${taskId}/comments`);
+export const addTaskComment = (taskId, text) => api.post(`/tasks/${taskId}/comments`, { text });
+export const deleteTaskComment = (taskId, commentId) => api.delete(`/tasks/${taskId}/comments/${commentId}`);
+
 // Timeline
 export const getTimeline = (params) => api.get('/timeline', { params });
 
@@ -134,5 +196,39 @@ export const getPersonAccount = (personId) => api.get(`/admin/persons/${personId
 export const createAccountForPerson = (personId, data) => api.post(`/admin/persons/${personId}/create-account`, data);
 export const linkPersonToUser = (userId, personId) => api.put(`/admin/users/${userId}/link-person/${personId}`);
 export const unlinkPerson = (userId) => api.put(`/admin/users/${userId}/unlink-person`);
+
+// Notifications
+export const getNotifications = (unreadOnly = false) => api.get('/notifications', { params: { unreadOnly } });
+export const getUnreadCount = () => api.get('/notifications/unread-count');
+export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.put('/notifications/read-all');
+export const deleteNotification = (id) => api.delete(`/notifications/${id}`);
+
+// Tags
+export const getTags = () => api.get('/tags');
+export const createTag = (data) => api.post('/tags', data);
+export const updateTag = (id, data) => api.put(`/tags/${id}`, data);
+export const deleteTag = (id) => api.delete(`/tags/${id}`);
+export const addTagToPerson = (personId, tagId) => api.post(`/tags/persons/${personId}`, tagId, { headers: { 'Content-Type': 'application/json' } });
+export const removeTagFromPerson = (personId, tagId) => api.delete(`/tags/persons/${personId}/${tagId}`);
+export const addTagToMeeting = (meetingId, tagId) => api.post(`/tags/meetings/${meetingId}`, tagId, { headers: { 'Content-Type': 'application/json' } });
+export const removeTagFromMeeting = (meetingId, tagId) => api.delete(`/tags/meetings/${meetingId}/${tagId}`);
+
+// Reminders
+export const getReminders = () => api.get('/reminders');
+export const createReminder = (data) => api.post('/reminders', data);
+export const completeReminder = (id) => api.put(`/reminders/${id}/complete`);
+export const deleteReminder = (id) => api.delete(`/reminders/${id}`);
+
+// Activity log
+export const getActivityLog = (params) => api.get('/activitylog', { params });
+
+// Global search
+export const globalSearch = (q) => api.get('/search', { params: { q } });
+
+// Export
+export const exportPersons = () => api.get('/export/persons', { responseType: 'blob' });
+export const exportTasks = () => api.get('/export/tasks', { responseType: 'blob' });
+export const exportMeetings = () => api.get('/export/meetings', { responseType: 'blob' });
 
 export default api;

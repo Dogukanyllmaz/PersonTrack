@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getMe } from '../services/api';
+import { getMe, logoutApi } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -22,21 +22,27 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const loginUser = (userData, token) => {
+  const loginUser = (userData, token, refreshToken) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try { await logoutApi(refreshToken); } catch {}
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 
   const isAdmin = user?.role === 'Admin';
   const isManager = user?.role === 'Manager';
-  const canManage = isAdmin || isManager; // kişi/görev/toplantı tümüne erişim
+  const canManage = isAdmin || isManager;
 
   return (
     <AuthContext.Provider value={{ user, loading, loginUser, logout, isAdmin, isManager, canManage }}>

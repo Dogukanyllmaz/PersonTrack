@@ -17,8 +17,8 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await login({ email, password });
-      const { token, ...userData } = res.data;
-      loginUser(userData, token);
+      const { token, refreshToken, ...userData } = res.data;
+      loginUser(userData, token, refreshToken);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Giriş başarısız.');

@@ -5,6 +5,7 @@ import {
   importMeetingNotes, downloadNotesTemplate, getPersons,
   uploadMeetingDocument, downloadMeetingDocument, deleteMeetingDocument,
   addMeetingLink, removeMeetingLink, getMeetings,
+  getTags, addTagToMeeting, removeTagFromMeeting, exportMeetings,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
@@ -49,12 +50,27 @@ export default function MeetingDetail() {
   const [linkForm, setLinkForm] = useState({ linkedMeetingId: '', linkType: 'İlgili' });
   const [addingLink, setAddingLink] = useState(false);
 
+  // Tags
+  const [allTags, setAllTags] = useState([]);
+  const [tagAdding, setTagAdding] = useState(false);
+
   const load = async () => {
-    const [mRes, pRes, allRes] = await Promise.all([getMeeting(id), getPersons(), getMeetings()]);
+    const [mRes, pRes, allRes, tagsRes] = await Promise.all([getMeeting(id), getPersons(), getMeetings(), getTags()]);
     setMeeting(mRes.data);
     setPersons(pRes.data);
     setAllMeetings(allRes.data.filter(m => m.id !== parseInt(id)));
+    setAllTags(tagsRes.data);
     setLoading(false);
+  };
+
+  const handleAddTag = async (tagId) => {
+    setTagAdding(true);
+    try { await addTagToMeeting(id, tagId); await load(); } catch {}
+    finally { setTagAdding(false); }
+  };
+
+  const handleRemoveTag = async (tagId) => {
+    try { await removeTagFromMeeting(id, tagId); await load(); } catch {}
   };
 
   useEffect(() => { load(); }, [id]);
@@ -177,6 +193,26 @@ export default function MeetingDetail() {
           <p className="text-gray-500 text-sm mt-1">
             📅 {new Date(meeting.meetingDate).toLocaleDateString('tr-TR', { dateStyle: 'long' })}
           </p>
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1 mt-2">
+            {(meeting.tags || []).map(mt => (
+              <span key={mt.tagId} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white"
+                style={{ backgroundColor: mt.tag?.color || '#6366f1' }}>
+                {mt.tag?.name}
+                <button onClick={() => handleRemoveTag(mt.tagId)} className="hover:opacity-70 leading-none">×</button>
+              </span>
+            ))}
+            {allTags.filter(t => !(meeting.tags || []).some(mt => mt.tagId === t.id)).length > 0 && (
+              <select onChange={e => { if (e.target.value) handleAddTag(parseInt(e.target.value)); e.target.value = ''; }}
+                className="text-xs border border-dashed border-gray-300 rounded-full px-2 py-0.5 text-gray-400 bg-transparent cursor-pointer"
+                disabled={tagAdding}>
+                <option value="">+ Etiket</option>
+                {allTags.filter(t => !(meeting.tags || []).some(mt => mt.tagId === t.id)).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
         {meeting.status === 'Planned' && (
           <button onClick={handleComplete}

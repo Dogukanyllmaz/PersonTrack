@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<MeetingTag> MeetingTags => Set<MeetingTag>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -224,6 +225,12 @@ public class AppDbContext : DbContext
         {
             e.HasOne(c => c.Task).WithMany(t => t.Comments).HasForeignKey(c => c.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(c => c.CreatedBy).WithMany().HasForeignKey(c => c.CreatedById).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<RefreshToken>(e =>
+        {
+            e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => r.Token).IsUnique();
         });
     }
 }

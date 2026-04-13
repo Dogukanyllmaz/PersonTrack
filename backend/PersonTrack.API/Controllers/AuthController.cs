@@ -32,7 +32,49 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Geçersiz email veya şifre." });
 
         var token = _tokenService.GenerateToken(user);
-        return Ok(new AuthResponse(user.Id, user.Username, user.Email, user.Role, token));
+        var refreshToken = await CreateRefreshTokenAsync(user.Id);
+
+        return Ok(new AuthResponse(user.Id, user.Username, user.Email, user.Role, token, refreshToken));
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest req)
+    {
+        var stored = await _db.RefreshTokens
+            .Include(r => r.User)
+            .FirstOrDefaultAsync(r => r.Token == req.RefreshToken && !r.IsRevoked && r.ExpiresAt > DateTime.UtcNow);
+
+        if (stored == null)
+            return Unauthorized(new { message = "Geçersiz veya süresi dolmuş refresh token." });
+
+        var user = stored.User!;
+        if (!user.IsActive)
+            return Unauthorized(new { message = "Hesap devre dışı." });
+
+        // Rotate: revoke old, issue new
+        stored.IsRevoked = true;
+        var newAccessToken = _tokenService.GenerateToken(user);
+        var newRefreshToken = await CreateRefreshTokenAsync(user.Id);
+        await _db.SaveChangesAsync();
+
+        return Ok(new AuthResponse(user.Id, user.Username, user.Email, user.Role, newAccessToken, newRefreshToken));
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] RefreshRequest? req)
+    {
+        if (req != null && !string.IsNullOrEmpty(req.RefreshToken))
+        {
+            var token = await _db.RefreshTokens
+                .FirstOrDefaultAsync(r => r.Token == req.RefreshToken);
+            if (token != null)
+            {
+                token.IsRevoked = true;
+                await _db.SaveChangesAsync();
+            }
+        }
+        return Ok(new { message = "Çıkış yapıldı." });
     }
 
     [HttpGet("me")]
@@ -61,10 +103,6 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Şifre güncellendi." });
     }
 
-    /// <summary>
-    /// Şifremi unuttum: Email gönder, 6 haneli OTP kodu üretilir.
-    /// Sistemde mail sunucusu varsa email gönderilir; yoksa admin panelden kodu görebilir.
-    /// </summary>
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
     {
@@ -73,13 +111,11 @@ public class AuthController : ControllerBase
         if (user == null)
             return Ok(new { otp = (string?)null, message = "Eğer bu e-posta kayıtlıysa sıfırlama kodu oluşturulur." });
 
-        // Mevcut kullanılmamış token'ları geçersiz kıl
         var oldTokens = await _db.PasswordResetTokens
             .Where(t => t.UserId == user.Id && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
             .ToListAsync();
         foreach (var t in oldTokens) t.IsUsed = true;
 
-        // 6 haneli OTP üret
         var otp = Random.Shared.Next(100000, 999999).ToString();
         _db.PasswordResetTokens.Add(new PasswordResetToken
         {
@@ -90,27 +126,20 @@ public class AuthController : ControllerBase
         });
         await _db.SaveChangesAsync();
 
-        // SMTP olmadığından OTP doğrudan döndürülüyor
-        // Gerçek e-posta altyapısı kurulduğunda bu kaldırılıp mail gönderilmeli
         return Ok(new { otp, message = "Sıfırlama kodunuz oluşturuldu." });
     }
 
-    /// <summary>
-    /// OTP kodu + yeni şifre ile şifre sıfırlama.
-    /// </summary>
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
         if (req.NewPassword.Length < 6)
             return BadRequest(new { message = "Şifre en az 6 karakter olmalıdır." });
 
-        // Geçerli token'ları al (son 2 saat içinde oluşturulmuş, kullanılmamış)
         var activeTokens = await _db.PasswordResetTokens
             .Include(t => t.User)
             .Where(t => !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
             .ToListAsync();
 
-        // OTP kodu eşleşen token'ı bul
         var match = activeTokens.FirstOrDefault(t => BCrypt.Net.BCrypt.Verify(req.OtpCode, t.OtpCode));
 
         if (match == null)
@@ -122,5 +151,24 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Şifreniz başarıyla güncellendi. Giriş yapabilirsiniz." });
+    }
+
+    private async Task<string> CreateRefreshTokenAsync(int userId)
+    {
+        // Clean up old tokens for this user (keep it tidy)
+        var old = await _db.RefreshTokens
+            .Where(r => r.UserId == userId && (r.IsRevoked || r.ExpiresAt <= DateTime.UtcNow))
+            .ToListAsync();
+        _db.RefreshTokens.RemoveRange(old);
+
+        var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = userId,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        });
+        await _db.SaveChangesAsync();
+        return token;
     }
 }

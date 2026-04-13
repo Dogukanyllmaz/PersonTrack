@@ -32,7 +32,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<ActivityLogService>();
 builder.Services.AddHostedService<BirthdayWorker>();
+builder.Services.AddHostedService<NotificationWorker>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 

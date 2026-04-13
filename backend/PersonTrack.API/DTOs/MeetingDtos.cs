@@ -26,7 +26,15 @@ public class MeetingResponse
     public List<MeetingNoteResponse> Notes { get; set; } = new();
     public List<MeetingDocumentResponse> Documents { get; set; } = new();
     public List<MeetingLinkResponse> LinkedMeetings { get; set; } = new();
+    public List<MeetingTagResponse> Tags { get; set; } = new();
 }
+
+public class MeetingTagResponse
+{
+    public int TagId { get; set; }
+    public TagInfoResponse? Tag { get; set; }
+}
+
 
 public class ParticipantResponse
 {
