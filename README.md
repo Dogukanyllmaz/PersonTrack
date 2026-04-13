@@ -1,0 +1,183 @@
+# 🚀 PersonTrack
+
+**PersonTrack**, organizasyonların kendi içlerinde güvenli bir şekilde personel, toplantı ve görev yönetimi yapabilmesini sağlayan modern bir takip sistemidir.
+
+Kurumsal kullanım senaryoları için geliştirilmiş olup, şirket içi iletişim, toplantı kayıtları ve organizasyonel hafızanın merkezi olarak konumlandırılmıştır.
+
+---
+
+## 🧠 Proje Amacı
+
+Bu sistemin temel amacı:
+
+* Personel bilgilerini merkezi olarak yönetmek
+* Toplantı süreçlerini kayıt altına almak
+* Kurum içi karar mekanizmalarını izlenebilir hale getirmek
+* Organizasyonel hafıza oluşturmak
+
+---
+
+## ⚙️ Özellikler
+
+### 👤 Personel Yönetimi
+
+* Detaylı personel profilleri
+* İletişim bilgileri
+* Görev / unvan takibi
+* İlişki ve doküman yönetimi
+
+---
+
+### 📅 Toplantı Yönetimi
+
+* Toplantı oluşturma ve düzenleme
+* Katılımcı yönetimi
+* Toplantı notları
+* Geçmiş toplantı kayıtları
+
+---
+
+### 🕒 Zaman Tüneli
+
+* Tüm aktivitelerin kronolojik takibi
+* Toplantı notları ve olay geçmişi
+* Filtreleme (kişi / tarih / tür)
+
+---
+
+### 📊 Dashboard
+
+* Toplam kişi sayısı
+* Aktif görevler
+* Toplantı sayıları
+* Yaklaşan doğum günleri
+* Bildirim sistemi
+
+---
+
+### ✅ Görev Yönetimi
+
+* Görev oluşturma
+* Durum takibi
+* Sorumlu atama
+
+---
+
+### 🔔 Bildirim & Aktivite
+
+* Sistem içi bildirimler
+* Aktivite günlüğü
+
+---
+
+## 🖼️ Ekran Görüntüleri
+
+### 📊 Dashboard
+
+![Dashboard](docs/images/dashboard.png)
+
+---
+
+### 📅 Toplantılar
+
+![Meetings](docs/images/meetings.png)
+
+---
+
+### 🕒 Zaman Tüneli
+
+![Timeline](docs/images/timeline.png)
+
+---
+
+### 👤 Kişi Detayı
+
+![Person Detail](docs/images/person.png)
+
+---
+
+## 🏗️ Mimari
+
+Proje, **Clean Architecture + Layered Architecture** prensipleriyle geliştirilmiştir.
+
+```bash
+backend/
+ ├── API
+ ├── Application
+ ├── Domain
+ ├── Persistence
+ ├── Infrastructure
+ └── Tests
+```
+
+### Kullanılan Yaklaşımlar:
+
+* CQRS (Command / Query Separation)
+* Repository Pattern
+* Dependency Injection
+* SOLID Principles
+
+---
+
+## 🧪 Testler
+
+Proje kapsamında kapsamlı unit testler yazılmıştır.
+
+* Service testleri
+* Controller testleri
+* Business logic doğrulamaları
+
+✔ 100+ test başarıyla çalışmaktadır
+
+---
+
+## 🔐 Güvenlik
+
+* Role-based authorization
+* JWT tabanlı kimlik doğrulama (planlanmış / entegre edilebilir)
+* Veri izolasyonu (kurum içi kullanım)
+
+---
+
+## 🛠️ Teknolojiler
+
+* ASP.NET Core
+* Entity Framework Core
+* SQL Server
+* RESTful API
+* (Frontend: Modern UI - framework belirtilebilir)
+
+---
+
+## 🚀 Kurulum
+
+```bash
+git clone https://github.com/Dogukanyllmaz/PersonTrack.git
+cd PersonTrack
+```
+
+```bash
+dotnet restore
+dotnet build
+dotnet run
+```
+
+---
+
+## 📌 Gelecek Geliştirmeler
+
+* 🔔 Gerçek zamanlı bildirim sistemi
+* 📎 Dosya / doküman ekleme
+* 📊 Raporlama ve export (PDF / Excel)
+* 🔍 Gelişmiş arama ve filtreleme
+* 🧾 Audit Log sistemi
+
+---
+
+## 💬 Sonuç
+
+PersonTrack, organizasyonların iç süreçlerini dijitalleştiren, izlenebilir ve sürdürülebilir hale getiren modern bir backend projesidir.
+
+Kurumsal kullanım senaryoları göz önünde bulundurularak tasarlanmıştır ve genişletilebilir mimarisi sayesinde farklı ihtiyaçlara kolayca adapte edilebilir.
+
+---
