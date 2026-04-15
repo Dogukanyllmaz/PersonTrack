@@ -1,6 +1,6 @@
 services:
 
-  # ── SQL Server ──────────────────────────────────────────────
+  # ── SQL Server ──────────────────────────────────────────────────
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: persontrack-db
@@ -12,6 +12,9 @@ services:
       - "1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
+    networks:
+      - persontrack-net
+    restart: unless-stopped
     healthcheck:
       test: >
         /opt/mssql-tools18/bin/sqlcmd
@@ -22,7 +25,7 @@ services:
       retries: 15
       start_period: 30s
 
-  # ── Backend API ─────────────────────────────────────────────
+  # ── Backend API ─────────────────────────────────────────────────
   backend:
     build:
       context: ./backend/PersonTrack.API
@@ -50,9 +53,14 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
-    restart: on-failure
+    networks:
+      - persontrack-net
+    restart: unless-stopped
+    # Backend is internal-only — not exposed directly to host
+    expose:
+      - "8080"
 
-  # ── Frontend (nginx + SPA + /api proxy) ─────────────────────
+  # ── Frontend (nginx + SPA + /api proxy) ─────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -63,7 +71,15 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    networks:
+      - persontrack-net
+    restart: unless-stopped
+
+networks:
+  persontrack-net:
+    driver: bridge
 
 volumes:
   sqldata:

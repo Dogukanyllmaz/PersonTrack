@@ -1,87 +1,138 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getTasks, createTask, updateTask, completeTask, deleteTask, getPersons,
-  getTaskComments, addTaskComment, deleteTaskComment, exportTasks, getErrorMessage } from '../services/api';
+import {
+  getTasks, createTask, updateTask, completeTask, deleteTask, getPersons,
+  getTaskComments, addTaskComment, deleteTaskComment, exportTasks, getErrorMessage
+} from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../context/ToastContext';
+import { TasksSkeleton } from '../components/Skeleton';
+import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 
+/* ── Constants ──────────────────────────────────────────────────────── */
 const emptyForm = { personId: '', title: '', description: '', assignedDate: '', dueDate: '', priority: 'Medium' };
 
-const STATUS_LABELS = { Active: 'Aktif', Completed: 'Tamamlandı', Pending: 'Bekliyor' };
-const STATUS_COLORS = {
-  Active: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  Completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  Pending: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-};
-const PRIORITY_LABELS = { Low: 'Düşük', Medium: 'Orta', High: 'Yüksek', Critical: 'Kritik' };
-const PRIORITY_COLORS = {
-  Low: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
-  Medium: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  High: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  Critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-};
-const PRIORITY_DOT = {
-  Low: 'bg-slate-400',
-  Medium: 'bg-blue-500',
-  High: 'bg-orange-500',
-  Critical: 'bg-red-500'
-};
-
+/* ── Helpers ────────────────────────────────────────────────────────── */
 function isOverdue(task) {
   return task.status === 'Active' && task.dueDate && new Date(task.dueDate) < new Date();
 }
-
-function SortIcon({ col, sortBy, sortDir }) {
-  if (sortBy !== col) return <span className="text-gray-300 ml-1">↕</span>;
-  return <span className="text-blue-500 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+function fmt(dateStr) {
+  if (!dateStr) return null;
+  return new Date(dateStr).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/* ── Sort indicator ─────────────────────────────────────────────────── */
+const SortIcon = memo(function SortIcon({ col, sortBy, sortDir }) {
+  if (sortBy !== col) return <span className="ml-1 opacity-20 text-xs">⇅</span>;
+  return <span className="ml-1 text-xs" style={{ color: 'var(--accent)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+});
+
+/* ── Memoized TaskRow ────────────────────────────────────────────────── */
+const TaskRow = memo(function TaskRow({
+  t, isSelected, onSelect, onComments, onComplete, onEdit, onDelete,
+  optimisticIds,
+}) {
+  const overdue    = isOverdue(t);
+  const isPending  = optimisticIds?.has(t.id);
+  const rowClass   = [
+    'task-row border-b border-[--card-border] last:border-0',
+    overdue    ? 'is-overdue' : '',
+    isSelected ? 'is-selected' : '',
+    isPending  ? 'opacity-50 pointer-events-none' : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <tr className={rowClass}>
+      <td className="px-4 py-3.5 w-10">
+        <input type="checkbox" checked={isSelected} onChange={() => onSelect(t.id)}
+          className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
+      </td>
+      <td className="px-4 py-3.5 max-w-[260px]">
+        <p className="font-medium text-sm leading-snug" style={{ color: 'var(--text-primary)' }}>
+          {t.title}
+          {overdue && (
+            <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
+              ⚠ GECİKMİŞ
+            </span>
+          )}
+        </p>
+        {t.description && (
+          <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-tertiary)' }}>{t.description}</p>
+        )}
+      </td>
+      <td className="px-4 py-3.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="font-medium">{t.personName}</span>
+      </td>
+      <td className="px-4 py-3.5">
+        <PriorityBadge priority={t.priority} />
+      </td>
+      <td className="px-4 py-3.5 text-sm" style={{ color: overdue ? '#EF4444' : 'var(--text-secondary)' }}>
+        {fmt(t.dueDate) ?? <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+      </td>
+      <td className="px-4 py-3.5">
+        <StatusBadge status={t.status} />
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <div className="flex gap-2 justify-end items-center">
+          <button onClick={() => onComments(t)}
+            className="p-1.5 rounded-lg text-[--text-tertiary] hover:text-[--text-secondary] hover:bg-[--content-bg] transition-all"
+            title="Yorumlar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+          </button>
+          {t.status !== 'Completed' && (
+            <Button size="xs" variant="success" onClick={() => onComplete(t.id)}>✓ Tamamla</Button>
+          )}
+          <Button size="xs" variant="ghost" onClick={() => onEdit(t)}>Düzenle</Button>
+          <Button size="xs" variant="danger" onClick={() => onDelete(t.id, t.title)}>Sil</Button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   Tasks page
+═══════════════════════════════════════════════════════════════════ */
 export default function Tasks() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const personIdFilter = searchParams.get('personId');
 
-  const [tasks, setTasks] = useState([]);
-  const [persons, setPersons] = useState([]);
+  const [tasks, setTasks]               = useState([]);
+  const [persons, setPersons]           = useState([]);
   const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('tasks_statusFilter') || '');
   const [priorityFilter, setPriorityFilter] = useState(() => localStorage.getItem('tasks_priorityFilter') || '');
-  const [sortBy, setSortBy] = useState(() => localStorage.getItem('tasks_sortBy') || '');
-  const [sortDir, setSortDir] = useState(() => localStorage.getItem('tasks_sortDir') || 'asc');
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editTask, setEditTask] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saveLoading, setSaveLoading] = useState(false);
+  const [sortBy, setSortBy]             = useState(() => localStorage.getItem('tasks_sortBy') || '');
+  const [sortDir, setSortDir]           = useState(() => localStorage.getItem('tasks_sortDir') || 'asc');
+  const [showForm, setShowForm]         = useState(false);
+  const [editTask, setEditTask]         = useState(null);
+  const [form, setForm]                 = useState(emptyForm);
+  const [errors, setErrors]             = useState({});
+  const [loading, setLoading]           = useState(true);
+  const [saveLoading, setSaveLoading]   = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [commentText, setCommentText] = useState('');
-  const [commentLoading, setCommentLoading] = useState(false);
+  const [comments, setComments]         = useState([]);
+  const [commentText, setCommentText]   = useState('');
+  const [commentLoading, setCommentLoading]   = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(null);
-
-  // Bulk & pagination
-  const PAGE_SIZE = 20;
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [page, setPage] = useState(1);
+  const [confirmDel, setConfirmDel]     = useState(null);
+  const [selectedIds, setSelectedIds]   = useState(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Optimistic: track IDs that have a pending API call (dims the row)
+  const [optimisticIds, setOptimisticIds] = useState(new Set());
 
-  const toggleSort = (col) => {
-    const newDir = sortBy === col && sortDir === 'asc' ? 'desc' : 'asc';
-    setSortBy(col);
-    setSortDir(newDir);
-    localStorage.setItem('tasks_sortBy', col);
-    localStorage.setItem('tasks_sortDir', newDir);
-  };
-
-  const load = async () => {
+  /* ── Data load ──────────────────────────────────────────────────── */
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
-      if (statusFilter) params.status = statusFilter;
+      if (statusFilter)   params.status   = statusFilter;
       if (priorityFilter) params.priority = priorityFilter;
       if (personIdFilter) params.personId = personIdFilter;
       const res = await getTasks(params);
@@ -89,19 +140,65 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, priorityFilter, personIdFilter]);
 
-  useEffect(() => { load(); setPage(1); setSelectedIds(new Set()); }, [statusFilter, priorityFilter, personIdFilter]);
+  useEffect(() => { load(); setSelectedIds(new Set()); }, [load]);
   useEffect(() => { getPersons().then(r => setPersons(r.data)); }, []);
 
-  const openCreate = () => {
+  /* ── Sort ───────────────────────────────────────────────────────── */
+  const sortedTasks = useMemo(() => {
+    if (!sortBy) return tasks;
+    return [...tasks].sort((a, b) => {
+      let av = a[sortBy], bv = b[sortBy];
+      if (sortBy === 'dueDate' || sortBy === 'assignedDate') {
+        av = av ? new Date(av) : new Date(0);
+        bv = bv ? new Date(bv) : new Date(0);
+      }
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
+      return 0;
+    });
+  }, [tasks, sortBy, sortDir]);
+
+  const allSelected = sortedTasks.length > 0 && sortedTasks.every(t => selectedIds.has(t.id));
+  const filterPerson = useMemo(() => persons.find(p => p.id === parseInt(personIdFilter)), [persons, personIdFilter]);
+
+  /* ── Handlers ───────────────────────────────────────────────────── */
+  const toggleSort = useCallback((col) => {
+    setSortBy(prev => {
+      const newDir = prev === col && sortDir === 'asc' ? 'desc' : 'asc';
+      setSortDir(newDir);
+      localStorage.setItem('tasks_sortBy', col);
+      localStorage.setItem('tasks_sortDir', newDir);
+      return col;
+    });
+  }, [sortDir]);
+
+  const setStatusAndStore   = useCallback((v) => { setStatusFilter(v);   localStorage.setItem('tasks_statusFilter', v);   }, []);
+  const setPriorityAndStore = useCallback((v) => { setPriorityFilter(v); localStorage.setItem('tasks_priorityFilter', v); }, []);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      sortedTasks.forEach(t => allSelected ? n.delete(t.id) : n.add(t.id));
+      return n;
+    });
+  }, [sortedTasks, allSelected]);
+
+  const openCreate = useCallback(() => {
     setEditTask(null);
     setForm({ ...emptyForm, personId: personIdFilter || '' });
     setErrors({});
     setShowForm(true);
-  };
+  }, [personIdFilter]);
 
-  const openEdit = (t) => {
+  const openEdit = useCallback((t) => {
     setEditTask(t);
     setForm({
       personId: t.personId.toString(),
@@ -113,9 +210,9 @@ export default function Tasks() {
     });
     setErrors({});
     setShowForm(true);
-  };
+  }, []);
 
-  const openComments = async (t) => {
+  const openComments = useCallback(async (t) => {
     setSelectedTask(t);
     setCommentText('');
     setCommentsLoading(true);
@@ -124,15 +221,16 @@ export default function Tasks() {
       setComments(res.data);
     } catch { setComments([]); }
     finally { setCommentsLoading(false); }
-  };
+  }, []);
 
-  const handleSave = async (e) => {
+  const handleSave = useCallback(async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!form.title?.trim()) newErrors.title = 'Görev adı zorunludur';
+    if (!form.title?.trim())         newErrors.title      = 'Görev adı zorunludur';
     if (!editTask && !form.personId) newErrors.assignedTo = 'Atanacak kişi seçilmelidir';
-    if (!form.dueDate) newErrors.dueDate = 'Bitiş tarihi zorunludur';
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+    if (!form.dueDate)               newErrors.dueDate    = 'Bitiş tarihi zorunludur';
+    if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
+
     setSaveLoading(true);
     try {
       if (editTask) {
@@ -157,35 +255,63 @@ export default function Tasks() {
       }
       setShowForm(false);
       await load();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally { setSaveLoading(false); }
-  };
+    } catch (err) { toast.error(getErrorMessage(err)); }
+    finally { setSaveLoading(false); }
+  }, [form, editTask, load, toast]);
 
-  const handleComplete = async (id) => {
-    await completeTask(id);
-    await load();
-  };
-
-  const handleDelete = (id, label) => {
-    setConfirmDel({ type: 'task', id, label });
-  };
-
-  const handleDeleteConfirmed = async () => {
-    if (!confirmDel) return;
+  /* ── Optimistic complete ────────────────────────────────────────── */
+  const handleComplete = useCallback(async (id) => {
+    // Instantly flip to Completed
+    setTasks(prev => prev.map(t =>
+      t.id === id ? { ...t, status: 'Completed', completedDate: new Date().toISOString() } : t
+    ));
+    setOptimisticIds(prev => new Set([...prev, id]));
     try {
-      if (confirmDel.type === 'task') {
-        await deleteTask(confirmDel.id);
-        await load();
-      } else if (confirmDel.type === 'comment') {
+      await completeTask(id);
+    } catch (err) {
+      // Rollback on failure
+      setTasks(prev => prev.map(t =>
+        t.id === id ? { ...t, status: 'Active', completedDate: null } : t
+      ));
+      toast.error(getErrorMessage(err));
+    } finally {
+      setOptimisticIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    }
+  }, [toast]);
+
+  /* ── Optimistic delete ──────────────────────────────────────────── */
+  const handleDelete = useCallback((id, label) => {
+    setConfirmDel({ type: 'task', id, label });
+  }, []);
+
+  const handleDeleteConfirmed = useCallback(async () => {
+    if (!confirmDel) return;
+    if (confirmDel.type === 'task') {
+      const { id } = confirmDel;
+      // Snapshot for rollback
+      const snapshot = tasks.find(t => t.id === id);
+      setConfirmDel(null);
+      // Instantly remove from list
+      setTasks(prev => prev.filter(t => t.id !== id));
+      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+      try {
+        await deleteTask(id);
+      } catch (err) {
+        // Restore on failure
+        if (snapshot) setTasks(prev => [...prev, snapshot].sort((a, b) => a.id - b.id));
+        toast.error(getErrorMessage(err));
+      }
+    } else {
+      // comment delete
+      try {
         await deleteTaskComment(selectedTask.id, confirmDel.id);
         setComments(prev => prev.filter(c => c.id !== confirmDel.id));
-      }
-    } catch (err) { toast.error(getErrorMessage(err)); }
-    finally { setConfirmDel(null); }
-  };
+      } catch (err) { toast.error(getErrorMessage(err)); }
+      finally { setConfirmDel(null); }
+    }
+  }, [confirmDel, selectedTask, tasks, toast]);
 
-  const handleAddComment = async (e) => {
+  const handleAddComment = useCallback(async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     setCommentLoading(true);
@@ -195,99 +321,86 @@ export default function Tasks() {
       setCommentText('');
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setCommentLoading(false); }
-  };
+  }, [commentText, selectedTask, toast]);
 
-  const handleDeleteComment = (commentId) => {
+  const handleDeleteComment = useCallback((commentId) => {
     setConfirmDel({ type: 'comment', id: commentId, label: 'Bu yorumu silmek istediğinizden emin misiniz?' });
-  };
+  }, []);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       const res = await exportTasks();
       const url = URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a'); a.href = url; a.download = `gorevler_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const a = document.createElement('a');
+      a.href = url; a.download = `gorevler_${new Date().toISOString().split('T')[0]}.xlsx`;
       a.click(); URL.revokeObjectURL(url);
     } catch (err) { toast.error(getErrorMessage(err)); }
-  };
+  }, [toast]);
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-
-  const handleBulkDelete = async () => {
-    const count = selectedIds.size;
-    setBulkDeleting(true);
-    try {
-      await Promise.all([...selectedIds].map(id => deleteTask(id)));
-      setSelectedIds(new Set());
-      setConfirmBulkDelete(false);
-      await load();
-      toast.success(`${count} görev silindi.`);
-    } catch (err) { toast.error(getErrorMessage(err)); }
-    finally { setBulkDeleting(false); }
-  };
-
-  const handleBulkComplete = async () => {
+  /* ── Optimistic bulk complete ───────────────────────────────────── */
+  const handleBulkComplete = useCallback(async () => {
     const ids = [...selectedIds].filter(id => {
       const t = tasks.find(t => t.id === id);
       return t && t.status !== 'Completed';
     });
+    if (ids.length === 0) return;
+    // Instantly flip
+    setTasks(prev => prev.map(t =>
+      ids.includes(t.id) ? { ...t, status: 'Completed', completedDate: new Date().toISOString() } : t
+    ));
+    setOptimisticIds(prev => new Set([...prev, ...ids]));
+    setSelectedIds(new Set());
     try {
       await Promise.all(ids.map(id => completeTask(id)));
-      setSelectedIds(new Set());
-      await load();
       toast.success(`${ids.length} görev tamamlandı.`);
-    } catch (err) { toast.error(getErrorMessage(err)); }
-  };
-
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (!sortBy) return 0;
-    let av = a[sortBy], bv = b[sortBy];
-    if (sortBy === 'dueDate' || sortBy === 'assignedDate') {
-      av = av ? new Date(av) : new Date(0);
-      bv = bv ? new Date(bv) : new Date(0);
+    } catch (err) {
+      // Rollback on failure — full reload
+      await load();
+      toast.error(getErrorMessage(err));
+    } finally {
+      setOptimisticIds(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
     }
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    if (av < bv) return sortDir === 'asc' ? -1 : 1;
-    if (av > bv) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
+  }, [selectedIds, tasks, load, toast]);
 
-  const totalPages = Math.ceil(sortedTasks.length / PAGE_SIZE);
-  const paginatedTasks = sortedTasks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const allOnPageSelected = paginatedTasks.length > 0 && paginatedTasks.every(t => selectedIds.has(t.id));
-  const toggleSelectAll = () => {
-    setSelectedIds(prev => {
-      const n = new Set(prev);
-      paginatedTasks.forEach(t => allOnPageSelected ? n.delete(t.id) : n.add(t.id));
-      return n;
-    });
-  };
+  /* ── Optimistic bulk delete ─────────────────────────────────────── */
+  const handleBulkDelete = useCallback(async () => {
+    const ids = [...selectedIds];
+    const count = ids.length;
+    const snapshots = tasks.filter(t => ids.includes(t.id));
+    setBulkDeleting(true);
+    // Instantly remove
+    setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    setSelectedIds(new Set());
+    setConfirmBulkDelete(false);
+    try {
+      await Promise.all(ids.map(id => deleteTask(id)));
+      toast.success(`${count} görev silindi.`);
+    } catch (err) {
+      // Rollback on failure
+      setTasks(prev => [...prev, ...snapshots].sort((a, b) => a.id - b.id));
+      toast.error(getErrorMessage(err));
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [selectedIds, tasks, toast]);
 
-  const filterPerson = persons.find(p => p.id === parseInt(personIdFilter));
+  /* ── Skeleton while loading ─────────────────────────────────────── */
+  if (loading) return <TasksSkeleton />;
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-center" style={{ color: 'var(--text-secondary)' }}>
-        <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-        <p className="text-sm">Görevler yükleniyor...</p>
-      </div>
-    </div>
-  );
-
+  /* ── Render ─────────────────────────────────────────────────────── */
   return (
-    <div>
+    <div className="animate-fade-in">
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Görevler</h1>
           {filterPerson
-            ? <p className="page-subtitle">Filtre: {filterPerson.fullName}</p>
-            : <p className="page-subtitle">{tasks.length} görev{totalPages > 1 ? ` · Sayfa ${page}/${totalPages}` : ''}</p>
+            ? <p className="page-subtitle">Filtre: <strong>{filterPerson.fullName}</strong></p>
+            : <p className="page-subtitle">{sortedTasks.length} görev</p>
           }
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <select value={priorityFilter} onChange={e => { setPriorityFilter(e.target.value); localStorage.setItem('tasks_priorityFilter', e.target.value); }}
+        <div className="flex gap-2 flex-wrap items-center">
+          <select value={priorityFilter} onChange={e => setPriorityAndStore(e.target.value)}
             className="input-base" style={{ width: 'auto', padding: '7px 12px' }}>
             <option value="">Tüm Öncelikler</option>
             <option value="Critical">Kritik</option>
@@ -295,148 +408,96 @@ export default function Tasks() {
             <option value="Medium">Orta</option>
             <option value="Low">Düşük</option>
           </select>
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); localStorage.setItem('tasks_statusFilter', e.target.value); }}
+          <select value={statusFilter} onChange={e => setStatusAndStore(e.target.value)}
             className="input-base" style={{ width: 'auto', padding: '7px 12px' }}>
             <option value="">Tüm Durumlar</option>
             <option value="Active">Aktif</option>
             <option value="Pending">Bekliyor</option>
             <option value="Completed">Tamamlandı</option>
           </select>
-          <button onClick={handleExport} className="btn-secondary">
-            ↓ Excel
-          </button>
-          <button onClick={openCreate} className="btn-primary">
-            + Yeni Görev
-          </button>
+          <Button variant="secondary" size="sm" onClick={handleExport}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Excel
+          </Button>
+          <Button variant="primary" size="sm" onClick={openCreate}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Yeni Görev
+          </Button>
         </div>
       </div>
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border animate-fade-in"
-          style={{ background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.2)' }}>
-          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{selectedIds.size} görev seçildi</span>
+          style={{ background: 'rgba(79,70,229,0.07)', borderColor: 'rgba(79,70,229,0.2)' }}>
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+            {selectedIds.size} görev seçildi
+          </span>
           <div className="flex gap-2 ml-auto">
-            <button onClick={handleBulkComplete}
-              className="text-sm px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium">
-              ✓ Tamamla
-            </button>
-            <button onClick={handleExport}
-              className="text-sm px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium">
-              ↓ Export
-            </button>
-            <button onClick={() => setConfirmBulkDelete(true)}
-              className="text-sm px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
-              Sil
-            </button>
-            <button onClick={() => setSelectedIds(new Set())} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }}>
-              İptal
-            </button>
+            <Button size="xs" variant="success" onClick={handleBulkComplete}>✓ Tamamla</Button>
+            <Button size="xs" variant="secondary" onClick={handleExport}>↓ Export</Button>
+            <Button size="xs" variant="danger" onClick={() => setConfirmBulkDelete(true)}>Sil</Button>
+            <Button size="xs" variant="ghost" onClick={() => setSelectedIds(new Set())}>İptal</Button>
           </div>
         </div>
       )}
 
+      {/* Table */}
       <div className="card overflow-hidden">
         {tasks.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4">✅</div>
-            <p className="font-semibold text-base" style={{ color: 'var(--text-secondary)' }}>
-              {(statusFilter || priorityFilter) ? 'Bu filtreye uygun görev bulunamadı' : 'Henüz görev oluşturulmadı'}
-            </p>
-            {!(statusFilter || priorityFilter) && (
-              <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>Yeni görev eklemek için butona tıklayın</p>
+          <EmptyState
+            preset={(statusFilter || priorityFilter) ? 'search' : 'tasks'}
+            body={(statusFilter || priorityFilter) ? 'Bu filtreye uygun görev bulunamadı.' : 'Yeni görev eklemek için butona tıklayın.'}
+            action={!(statusFilter || priorityFilter) && (
+              <Button variant="primary" size="sm" onClick={openCreate}>+ Yeni Görev</Button>
             )}
-          </div>
+          />
         ) : (
-          <table className="w-full text-sm">
-            <thead style={{ background: 'var(--content-bg)', borderBottom: '1px solid var(--card-border)' }}>
-              <tr>
-                <th className="px-4 py-3 w-10">
-                  <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
-                </th>
-                <th onClick={() => toggleSort('title')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                  Görev<SortIcon col="title" sortBy={sortBy} sortDir={sortDir} />
-                </th>
-                <th onClick={() => toggleSort('personName')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                  Kişi<SortIcon col="personName" sortBy={sortBy} sortDir={sortDir} />
-                </th>
-                <th onClick={() => toggleSort('priority')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                  Öncelik<SortIcon col="priority" sortBy={sortBy} sortDir={sortDir} />
-                </th>
-                <th onClick={() => toggleSort('dueDate')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                  Son Tarih<SortIcon col="dueDate" sortBy={sortBy} sortDir={sortDir} />
-                </th>
-                <th onClick={() => toggleSort('status')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                  Durum<SortIcon col="status" sortBy={sortBy} sortDir={sortDir} />
-                </th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedTasks.map((t) => (
-                <tr key={t.id}
-                  className="table-row-hover transition-colors"
-                  style={{
-                    borderBottom: '1px solid var(--card-border)',
-                    ...(selectedIds.has(t.id) ? { background: 'rgba(59,130,246,0.06)' } : isOverdue(t) ? { background: 'rgba(239,68,68,0.05)' } : {})
-                  }}>
-                  <td className="px-4 py-3">
-                    <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+              <thead style={{ background: 'var(--content-bg)', borderBottom: '1px solid var(--card-border)' }}>
+                <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
                       className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {t.title}
-                      {isOverdue(t) && <span className="ml-2 text-xs text-red-500 font-semibold">⚠ Gecikmiş</span>}
-                    </p>
-                    {t.description && <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-tertiary)' }}>{t.description}</p>}
-                    {t.comments?.length > 0 && (
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>💬 {t.comments.length} yorum</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{t.personName}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold ${PRIORITY_COLORS[t.priority] || 'bg-gray-100 text-gray-600'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[t.priority] || 'bg-gray-400'}`} />
-                      {PRIORITY_LABELS[t.priority] || t.priority}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                    {t.dueDate ? (
-                      <span className={isOverdue(t) ? 'text-red-500 font-semibold' : ''}>
-                        {new Date(t.dueDate).toLocaleDateString('tr-TR')}
-                      </span>
-                    ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${STATUS_COLORS[t.status] || 'bg-gray-100 text-gray-600'}`}>
-                      {STATUS_LABELS[t.status] || t.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <button onClick={() => openComments(t)}
-                        className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: 'var(--text-tertiary)' }}>💬</button>
-                      {t.status !== 'Completed' && (
-                        <button onClick={() => handleComplete(t.id)}
-                          className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Tamamla</button>
-                      )}
-                      <button onClick={() => openEdit(t)}
-                        className="text-xs font-medium" style={{ color: 'var(--accent)' }}>Düzenle</button>
-                      <button onClick={() => handleDelete(t.id, t.title)}
-                        className="text-xs text-red-500 hover:text-red-600 font-medium">Sil</button>
-                    </div>
-                  </td>
+                  </th>
+                  {[
+                    { key: 'title',      label: 'Görev' },
+                    { key: 'personName', label: 'Kişi' },
+                    { key: 'priority',   label: 'Öncelik' },
+                    { key: 'dueDate',    label: 'Son Tarih' },
+                    { key: 'status',     label: 'Durum' },
+                  ].map(col => (
+                    <th key={col.key} onClick={() => toggleSort(col.key)}
+                      className="table-th text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
+                      style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
+                      {col.label}<SortIcon col={col.key} sortBy={sortBy} sortDir={sortDir} />
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 w-48" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedTasks.map(t => (
+                  <TaskRow
+                    key={t.id}
+                    t={t}
+                    isSelected={selectedIds.has(t.id)}
+                    onSelect={toggleSelect}
+                    onComments={openComments}
+                    onComplete={handleComplete}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    optimisticIds={optimisticIds}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -446,30 +507,34 @@ export default function Tasks() {
           <form onSubmit={handleSave} className="space-y-4">
             {!editTask && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kişi *</label>
-                <select value={form.personId} onChange={e => setForm({...form, personId: e.target.value})} required
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500">
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Kişi *</label>
+                <select value={form.personId} onChange={e => setForm(f => ({ ...f, personId: e.target.value }))} required
+                  className="input-base">
                   <option value="">Seçin...</option>
                   {persons.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
                 </select>
+                {errors.assignedTo && <p className="text-xs text-red-500 mt-1">{errors.assignedTo}</p>}
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Görev Başlığı <span className="text-red-500">*</span></label>
-              <input value={form.title} onChange={e => { setForm({...form, title: e.target.value}); setErrors(prev => ({...prev, title: undefined})); }}
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 ${errors.title ? 'border-red-400 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'}`} />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                Görev Başlığı <span className="text-red-500">*</span>
+              </label>
+              <input value={form.title}
+                onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setErrors(p => ({ ...p, title: undefined })); }}
+                className="input-base" style={errors.title ? { borderColor: '#EF4444' } : {}} placeholder="Görev başlığını girin" />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Açıklama</label>
-              <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                rows={3} className="input-base" placeholder="İsteğe bağlı..." />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Öncelik</label>
-                <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500">
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Öncelik</label>
+                <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
+                  className="input-base">
                   <option value="Low">Düşük</option>
                   <option value="Medium">Orta</option>
                   <option value="High">Yüksek</option>
@@ -477,48 +542,29 @@ export default function Tasks() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Atanma Tarihi *</label>
-                <input type="date" value={form.assignedDate} onChange={e => setForm({...form, assignedDate: e.target.value})} required
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Atanma Tarihi *</label>
+                <input type="date" value={form.assignedDate}
+                  onChange={e => setForm(f => ({ ...f, assignedDate: e.target.value }))}
+                  required className="input-base" />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Son Tarih <span className="text-red-500">*</span></label>
-              <input type="date" value={form.dueDate} onChange={e => { setForm({...form, dueDate: e.target.value}); setErrors(prev => ({...prev, dueDate: undefined})); }}
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 ${errors.dueDate ? 'border-red-400 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'}`} />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                Son Tarih <span className="text-red-500">*</span>
+              </label>
+              <input type="date" value={form.dueDate}
+                onChange={e => { setForm(f => ({ ...f, dueDate: e.target.value })); setErrors(p => ({ ...p, dueDate: undefined })); }}
+                className="input-base" style={errors.dueDate ? { borderColor: '#EF4444' } : {}} />
               {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate}</p>}
             </div>
-            <button type="submit" disabled={loading}
-              className="btn-primary w-full justify-center disabled:opacity-50" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
-              {loading ? 'Kaydediliyor...' : 'Kaydet'}
-            </button>
+            <Button type="submit" loading={saveLoading} className="w-full justify-center" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+              {editTask ? 'Değişiklikleri Kaydet' : 'Görev Oluştur'}
+            </Button>
           </form>
         </Modal>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="btn-secondary disabled:opacity-40" style={{ padding: '6px 14px', fontSize: '13px' }}>
-            ← Önceki
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pg => (
-            <button key={pg} onClick={() => setPage(pg)}
-              className="w-8 h-8 text-sm rounded-lg transition-colors font-medium"
-              style={page === pg
-                ? { background: 'var(--accent)', color: 'white', border: 'none' }
-                : { border: '1px solid var(--card-border)', color: 'var(--text-secondary)', background: 'transparent' }}>
-              {pg}
-            </button>
-          ))}
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            className="btn-secondary disabled:opacity-40" style={{ padding: '6px 14px', fontSize: '13px' }}>
-            Sonraki →
-          </button>
-        </div>
-      )}
-
+      {/* Confirm dialogs */}
       <ConfirmDialog
         open={!!confirmDel}
         title={confirmDel?.type === 'task' ? 'Görevi Sil' : 'Yorumu Sil'}
@@ -530,7 +576,6 @@ export default function Tasks() {
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDel(null)}
       />
-
       <ConfirmDialog
         open={confirmBulkDelete}
         title="Toplu Silme"
@@ -546,41 +591,38 @@ export default function Tasks() {
       {selectedTask && (
         <Modal title={`Yorumlar — ${selectedTask.title}`} onClose={() => setSelectedTask(null)}>
           <div className="space-y-4">
-            <div className="max-h-60 overflow-y-auto space-y-3">
+            <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
               {commentsLoading ? (
-                <div className="flex items-center justify-center py-6">
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
                 </div>
               ) : comments.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">Henüz yorum yok</p>
-              ) : (
-                comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <div className="flex-1 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                      <div className="flex justify-between items-start">
-                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{c.createdByName}</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString('tr-TR')}</p>
-                          <button onClick={() => handleDeleteComment(c.id)} className="text-xs text-red-400 hover:text-red-600">×</button>
-                        </div>
+                <p className="text-sm text-center py-8" style={{ color: 'var(--text-tertiary)' }}>Henüz yorum yok</p>
+              ) : comments.map(c => (
+                <div key={c.id} className="group flex gap-3">
+                  <div className="flex-1 rounded-xl px-3.5 py-3"
+                    style={{ background: 'var(--content-bg)', border: '1px solid var(--card-border)' }}>
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{c.createdByName}</p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{new Date(c.createdAt).toLocaleString('tr-TR')}</p>
+                        <button onClick={() => handleDeleteComment(c.id)}
+                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all text-sm font-bold">×</button>
                       </div>
-                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{c.content}</p>
                     </div>
+                    <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-primary)' }}>{c.content}</p>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
             <form onSubmit={handleAddComment} className="flex gap-2">
               <input
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 placeholder="Yorum yaz..."
-                className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+                className="input-base flex-1"
               />
-              <button type="submit" disabled={commentLoading || !commentText.trim()}
-                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
-                Gönder
-              </button>
+              <Button type="submit" loading={commentLoading} disabled={!commentText.trim()}>Gönder</Button>
             </form>
           </div>
         </Modal>
