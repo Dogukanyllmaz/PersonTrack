@@ -73,56 +73,45 @@ Bu sistemin temel amacı:
 ## 🖼️ Ekran Görüntüleri
 
 ### 🚀 LOGIN
-
-![Login](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOGIN.png)
+![Login](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/LOGIN.png)
 
 ---
 
 ### 📊 Dashboard
-
-![Dashboard](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/DASHBOARD.png)
+![Dashboard](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/DASHBOARD.png)
 
 ---
 
 ### ✅ TASKS
-
-![TASKS](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/TASKS.png)
+![TASKS](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/TASKS.png)
 
 ---
 
 ### 📅 Toplantılar
-
-![Meetings](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETİNG.png)
-
-![Meetings Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETINGDETAILS.png)
+![Meetings](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/MEETİNG.png)
+![Meetings Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/MEETINGDETAILS.png)
 
 ---
 
 ### 🕒 Zaman Tüneli
-
-![Timeline](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/CHRONO.png)
+![Timeline](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/CHRONO.png)
 
 ---
 
 ### 👤 Kişi Detayı
-![Person](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSON.png)
-
-![Person Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSONDETAILS.png)
+![Person](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/PERSON.png)
+![Person Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/PERSONDETAILS.png)
 
 ---
 
 ### 🔔 Hatırlatıcı
-![Reminder](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/REMINDER.png)
+![Reminder](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/REMINDER.png)
 
 ---
 
 ### ADMIN
-
-![ADMIN](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/ADMIN.png)
-
-![LOG](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOG.png)
-
----
+![ADMIN](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/ADMIN.png)
+![LOG](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/main/src/LOG.png)
 
 ## 🏗️ Mimari
 
