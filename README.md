@@ -74,53 +74,53 @@ Bu sistemin temel amacı:
 
 ### 🚀 LOGIN
 
-![Login](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOGIN.png)
+![Login](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOGIN.png)
 
 ---
 
 ### 📊 Dashboard
 
-![Dashboard](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/DASHBOARD.png)
+![Dashboard](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/DASHBOARD.png)
 
 ---
 
 ### ✅ TASKS
 
-![TASKS](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/TASKS.png)
+![TASKS](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/TASKS.png)
 
 ---
 
 ### 📅 Toplantılar
 
-![Meetings](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETİNG.png)
+![Meetings](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETİNG.png)
 
-![Meetings Detail](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETINGDETAILS.png)
+![Meetings Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETINGDETAILS.png)
 
 ---
 
 ### 🕒 Zaman Tüneli
 
-![Timeline](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/CHRONO.png)
+![Timeline](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/CHRONO.png)
 
 ---
 
 ### 👤 Kişi Detayı
-![Person](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSON.png)
+![Person](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSON.png)
 
-![Person Detail](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSONDETAILS.png)
+![Person Detail](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSONDETAILS.png)
 
 ---
 
 ### 🔔 Hatırlatıcı
-![Reminder](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/REMINDER.png)
+![Reminder](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/REMINDER.png)
 
 ---
 
 ### ADMIN
 
-![ADMIN](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/ADMIN.png)
+![ADMIN](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/ADMIN.png)
 
-![LOG](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOG.png)
+![LOG](https://raw.githubusercontent.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOG.png)
 
 ---
 
