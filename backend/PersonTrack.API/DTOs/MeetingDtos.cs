@@ -1,16 +1,30 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PersonTrack.API.DTOs;
 
 public record MeetingCreateRequest(
+    [Required(ErrorMessage = "Toplantı başlığı zorunludur.")]
+    [StringLength(200, MinimumLength = 3, ErrorMessage = "Başlık 3-200 karakter arasında olmalıdır.")]
     string Title,
+
     string? Content,
+
+    [Required(ErrorMessage = "Toplantı tarihi zorunludur.")]
     DateTime MeetingDate,
+
     List<int> ParticipantIds
 );
 
 public record MeetingUpdateRequest(
+    [Required(ErrorMessage = "Toplantı başlığı zorunludur.")]
+    [StringLength(200, MinimumLength = 3)]
     string Title,
+
     string? Content,
+
+    [Required(ErrorMessage = "Toplantı tarihi zorunludur.")]
     DateTime MeetingDate,
+
     List<int> ParticipantIds
 );
 
@@ -35,7 +49,6 @@ public class MeetingTagResponse
     public TagInfoResponse? Tag { get; set; }
 }
 
-
 public class ParticipantResponse
 {
     public int PersonId { get; set; }
@@ -54,7 +67,7 @@ public class MeetingNoteResponse
 
 public record MeetingNoteCreateRequest(
     int? PersonId,
-    string Content,
+    [Required(ErrorMessage = "Not içeriği zorunludur.")] string Content,
     string? MinuteMarker,
     int OrderIndex
 );
@@ -80,3 +93,6 @@ public class MeetingLinkResponse
 }
 
 public record AddMeetingLinkRequest(int LinkedMeetingId, string? LinkType);
+
+/// <summary>One row of a confirmed import (personId already resolved by the user).</summary>
+public record ConfirmedNoteRowDto(int? PersonId, string Content, string? MinuteMarker);

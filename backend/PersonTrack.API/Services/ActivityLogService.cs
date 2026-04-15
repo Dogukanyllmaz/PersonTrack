@@ -7,12 +7,17 @@ public class ActivityLogService
 {
     private readonly AppDbContext _db;
 
-    public ActivityLogService(AppDbContext db)
-    {
-        _db = db;
-    }
+    public ActivityLogService(AppDbContext db) => _db = db;
 
-    public async Task LogAsync(int userId, string entityType, int? entityId, string entityName, string action, string? details = null)
+    public async Task LogAsync(
+        int userId,
+        string entityType,
+        int? entityId,
+        string entityName,
+        string action,
+        string? details = null,
+        string? ipAddress = null,
+        string? userAgent = null)
     {
         _db.ActivityLogs.Add(new ActivityLog
         {
@@ -21,7 +26,9 @@ public class ActivityLogService
             EntityId = entityId,
             EntityName = entityName,
             Action = action,
-            Details = details
+            Details = details,
+            IpAddress = ipAddress,
+            UserAgent = userAgent
         });
         await _db.SaveChangesAsync();
     }

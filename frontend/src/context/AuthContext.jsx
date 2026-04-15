@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   const canManage = isAdmin || isManager;
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logout, isAdmin, isManager, canManage }}>
+    <AuthContext.Provider value={{ user, setUser, loading, loginUser, logout, isAdmin, isManager, canManage }}>
       {children}
     </AuthContext.Provider>
   );

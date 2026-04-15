@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
+import { ChatHubProvider } from './hooks/useChatHub';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 
@@ -17,6 +20,11 @@ import PersonDetail from './pages/PersonDetail';
 import Notifications from './pages/Notifications';
 import Reminders from './pages/Reminders';
 import ActivityLog from './pages/ActivityLog';
+import Calendar from './pages/Calendar';
+import Tags from './pages/Tags';
+import Messages from './pages/Messages';
+import Monitor from './pages/Monitor';
+import Profile from './pages/Profile';
 
 function AppRoutes() {
   return (
@@ -53,11 +61,26 @@ function AppRoutes() {
       <Route path="/reminders" element={
         <PrivateRoute><Layout><Reminders /></Layout></PrivateRoute>
       } />
+      <Route path="/calendar" element={
+        <PrivateRoute><Layout><Calendar /></Layout></PrivateRoute>
+      } />
+      <Route path="/tags" element={
+        <PrivateRoute managerOnly><Layout><Tags /></Layout></PrivateRoute>
+      } />
+      <Route path="/messages" element={
+        <PrivateRoute><Layout><Messages /></Layout></PrivateRoute>
+      } />
       <Route path="/activity-log" element={
         <PrivateRoute adminOnly><Layout><ActivityLog /></Layout></PrivateRoute>
       } />
+      <Route path="/monitor" element={
+        <PrivateRoute adminOnly><Layout><Monitor /></Layout></PrivateRoute>
+      } />
       <Route path="/admin" element={
         <PrivateRoute adminOnly><Layout><Admin /></Layout></PrivateRoute>
+      } />
+      <Route path="/profile" element={
+        <PrivateRoute><Layout><Profile /></Layout></PrivateRoute>
       } />
     </Routes>
   );
@@ -67,7 +90,13 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <ThemeProvider>
+          <ToastProvider>
+            <ChatHubProvider>
+              <AppRoutes />
+            </ChatHubProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </AuthProvider>
   );

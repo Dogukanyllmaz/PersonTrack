@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PersonTrack.API.Data;
 
@@ -11,9 +12,11 @@ using PersonTrack.API.Data;
 namespace PersonTrack.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413182233_AddAuditLogIpUserAgent")]
+    partial class AddAuditLogIpUserAgent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -90,52 +93,6 @@ namespace PersonTrack.API.Migrations
                         .IsUnique();
 
                     b.ToTable("BirthdayLogs");
-                });
-
-            modelBuilder.Entity("PersonTrack.API.Models.Conversation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Conversations");
-                });
-
-            modelBuilder.Entity("PersonTrack.API.Models.ConversationParticipant", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ConversationId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("LastReadAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ConversationId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("ConversationParticipants");
                 });
 
             modelBuilder.Entity("PersonTrack.API.Models.Meeting", b =>
@@ -316,39 +273,6 @@ namespace PersonTrack.API.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("MeetingTags");
-                });
-
-            modelBuilder.Entity("PersonTrack.API.Models.Message", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ConversationId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("SenderId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConversationId");
-
-                    b.HasIndex("SenderId");
-
-                    b.ToTable("Messages");
                 });
 
             modelBuilder.Entity("PersonTrack.API.Models.Notification", b =>
@@ -834,25 +758,6 @@ namespace PersonTrack.API.Migrations
                     b.Navigation("Person");
                 });
 
-            modelBuilder.Entity("PersonTrack.API.Models.ConversationParticipant", b =>
-                {
-                    b.HasOne("PersonTrack.API.Models.Conversation", "Conversation")
-                        .WithMany("Participants")
-                        .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PersonTrack.API.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Conversation");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("PersonTrack.API.Models.Meeting", b =>
                 {
                     b.HasOne("PersonTrack.API.Models.User", "CreatedBy")
@@ -956,25 +861,6 @@ namespace PersonTrack.API.Migrations
                     b.Navigation("Meeting");
 
                     b.Navigation("Tag");
-                });
-
-            modelBuilder.Entity("PersonTrack.API.Models.Message", b =>
-                {
-                    b.HasOne("PersonTrack.API.Models.Conversation", "Conversation")
-                        .WithMany("Messages")
-                        .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PersonTrack.API.Models.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Conversation");
-
-                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("PersonTrack.API.Models.Notification", b =>
@@ -1160,13 +1046,6 @@ namespace PersonTrack.API.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Person");
-                });
-
-            modelBuilder.Entity("PersonTrack.API.Models.Conversation", b =>
-                {
-                    b.Navigation("Messages");
-
-                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("PersonTrack.API.Models.Meeting", b =>

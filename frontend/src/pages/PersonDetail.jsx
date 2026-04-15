@@ -11,6 +11,9 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import PhoneInput from '../components/PhoneInput';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Breadcrumb from '../components/Breadcrumb';
+import Tooltip from '../components/Tooltip';
 
 const RELATIONSHIP_TYPES = [
   'Baba', 'Anne', 'Oğul', 'Kız', 'Erkek Kardeş', 'Kız Kardeş', 'Eş',
@@ -48,6 +51,9 @@ export default function PersonDetail() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // confirm dialog
+  const [confirmAction, setConfirmAction] = useState(null);
 
   // relations
   const [allPersons, setAllPersons] = useState([]);
@@ -160,8 +166,7 @@ export default function PersonDetail() {
   }
 
   async function handleRemoveRel(relId) {
-    if (!confirm('Bu ilişkiyi silmek istiyor musunuz?')) return;
-    try { await removeRelationship(id, relId); await loadPerson(); } catch {}
+    setConfirmAction({ label: 'Bu ilişkiyi kalıcı olarak silmek istediğinizden emin misiniz?', onConfirm: async () => { try { await removeRelationship(id, relId); await loadPerson(); } catch {} } });
   }
 
   async function handlePhotoChange(e) {
@@ -175,8 +180,7 @@ export default function PersonDetail() {
   }
 
   async function handleDeletePhoto() {
-    if (!confirm('Fotoğrafı kaldırmak istiyor musunuz?')) return;
-    try { await deletePersonPhoto(id); await loadPerson(); } catch {}
+    setConfirmAction({ label: 'Profil fotoğrafı kaldırılacak. Bu işlem geri alınamaz.', onConfirm: async () => { try { await deletePersonPhoto(id); await loadPerson(); } catch {} } });
   }
 
   async function handleUpload(e) {
@@ -198,8 +202,7 @@ export default function PersonDetail() {
   }
 
   async function handleDeleteDoc(docId) {
-    if (!confirm('Bu evrakı silmek istiyor musunuz?')) return;
-    try { await deletePersonDocument(id, docId); await loadPerson(); } catch {}
+    setConfirmAction({ label: 'Bu evrak kalıcı olarak silinecek. Bu işlem geri alınamaz.', onConfirm: async () => { try { await deletePersonDocument(id, docId); await loadPerson(); } catch {} } });
   }
 
   async function handleAddTask() {
@@ -226,8 +229,7 @@ export default function PersonDetail() {
   }
 
   async function handleDeleteTask(taskId) {
-    if (!confirm('Bu görevi silmek istiyor musunuz?')) return;
-    try { await deleteTask(taskId); await loadTasks(); } catch {}
+    setConfirmAction({ label: 'Bu görev kalıcı olarak silinecek. Bu işlem geri alınamaz.', onConfirm: async () => { try { await deleteTask(taskId); await loadTasks(); } catch {} } });
   }
 
   async function handleCreateAccount(e) {
@@ -275,7 +277,12 @@ export default function PersonDetail() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 text-gray-400">Yükleniyor...</div>
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center" style={{ color: 'var(--text-secondary)' }}>
+        <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+        <p className="text-sm">Yükleniyor...</p>
+      </div>
+    </div>
   );
   if (!person) return null;
 
@@ -289,8 +296,12 @@ export default function PersonDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <Breadcrumb items={[
+        { label: 'Kişiler', to: '/persons' },
+        { label: `${person.firstName} ${person.lastName}` },
+      ]} />
       {/* Header */}
-      <div className="bg-white rounded-xl border p-5">
+      <div className="card p-5">
         <div className="flex items-start gap-5">
           {/* Vesikalık Fotoğraf */}
           <div className="relative flex-shrink-0 group">
@@ -335,16 +346,16 @@ export default function PersonDetail() {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-slate-800">{person.firstName} {person.lastName}</h1>
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{person.firstName} {person.lastName}</h1>
                 {(person.currentPosition || person.organization) && (
-                  <p className="text-slate-500 text-sm mt-0.5">
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                     {person.currentPosition}
                     {person.currentPosition && person.organization ? ' — ' : ''}
                     {person.organization}
                   </p>
                 )}
-                {person.email && <p className="text-sm text-gray-400 mt-1">✉ {person.email}</p>}
-                {person.phone && <p className="text-sm text-gray-400">📞 {person.phone}</p>}
+                {person.email && <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>✉ {person.email}</p>}
+                {person.phone && <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>📞 {person.phone}</p>}
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(person.tags || []).map(pt => (
@@ -369,19 +380,14 @@ export default function PersonDetail() {
               <div className="flex gap-2 shrink-0">
                 {editing ? (
                   <>
-                    <button onClick={() => setEditing(false)}
-                      className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
-                    <button onClick={handleSave} disabled={saving}
-                      className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                    <button onClick={() => setEditing(false)} className="btn-secondary">İptal</button>
+                    <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-50">
                       {saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={() => navigate('/persons')}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-500">← Geri</button>
-                    <button onClick={() => setEditing(true)}
-                      className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700">Düzenle</button>
+                    <button onClick={() => setEditing(true)} className="btn-primary">Düzenle</button>
                   </>
                 )}
               </div>
@@ -391,13 +397,14 @@ export default function PersonDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div style={{ borderBottom: '1px solid var(--card-border)' }}>
         <div className="flex flex-wrap">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id ? 'border-slate-800 text-slate-800' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}>
+              className="px-5 py-3 text-sm font-semibold border-b-2 transition-colors"
+              style={tab === t.id
+                ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
+                : { borderColor: 'transparent', color: 'var(--text-tertiary)' }}>
               {t.label}
             </button>
           ))}
@@ -406,7 +413,7 @@ export default function PersonDetail() {
 
       {/* ── BİLGİLER ── */}
       {tab === 'info' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="card p-6">
           {editing ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
@@ -465,14 +472,14 @@ export default function PersonDetail() {
                 { label: 'Kayıt Tarihi', value: new Date(person.createdAt).toLocaleDateString('tr-TR') },
               ].filter(f => f.value).map(f => (
                 <div key={f.label}>
-                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{f.label}</div>
-                  <div className="text-sm text-gray-800">{f.value}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>{f.label}</div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{f.value}</div>
                 </div>
               ))}
               {person.notes && (
                 <div className="md:col-span-2">
-                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Notlar</div>
-                  <div className="text-sm text-gray-800 whitespace-pre-wrap">{person.notes}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>Notlar</div>
+                  <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{person.notes}</div>
                 </div>
               )}
             </div>
@@ -492,7 +499,7 @@ export default function PersonDetail() {
           </div>
 
           {showRelForm && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <div className="card p-5 space-y-4">
               <p className="text-xs text-gray-500">
                 İlişki yönü: <strong>{person.firstName}</strong> → seçilen kişi için geçerlidir.
               </p>
@@ -538,31 +545,35 @@ export default function PersonDetail() {
           )}
 
           {!person.relationships?.length ? (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
-              Henüz ilişki eklenmemiş.
+            <div className="text-center py-12 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+              <p className="text-3xl mb-2">🔗</p>
+              <p className="font-medium">Henüz ilişki eklenmemiş</p>
+              <p className="text-sm mt-1">Yukarıdaki "İlişki Ekle" butonunu kullanın</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            <div className="card overflow-hidden">
               {person.relationships.map(rel => (
-                <div key={rel.id} className="flex items-center justify-between px-5 py-4">
+                <div key={rel.id} className="flex items-center justify-between px-5 py-4"
+                  style={{ borderBottom: '1px solid var(--card-border)' }}>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      rel.isReverse ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      rel.isReverse ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                     }`}>
                       {rel.relationshipType}
                     </span>
                     <Link to={`/persons/${rel.relatedPersonId}`}
-                      className="text-sm font-medium text-gray-800 hover:text-slate-600 hover:underline">
+                      className="text-sm font-semibold hover:underline transition-colors"
+                      style={{ color: 'var(--text-primary)' }}>
                       {rel.relatedPersonName}
                     </Link>
-                    {rel.notes && <span className="text-xs text-gray-400">— {rel.notes}</span>}
+                    {rel.notes && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>— {rel.notes}</span>}
                     {rel.isReverse && (
-                      <span className="text-xs text-orange-400 italic">(diğer kişi tarafından tanımlı)</span>
+                      <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>(diğer kişi tarafından tanımlı)</span>
                     )}
                   </div>
                   {!rel.isReverse && (
                     <button onClick={() => handleRemoveRel(rel.id)}
-                      className="text-red-400 hover:text-red-600 text-sm ml-4 shrink-0">Sil</button>
+                      className="text-xs text-red-500 hover:text-red-600 ml-4 shrink-0 font-medium">Sil</button>
                   )}
                 </div>
               ))}
@@ -587,27 +598,30 @@ export default function PersonDetail() {
           </div>
 
           {!person.documents?.length ? (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
-              Henüz evrak yüklenmemiş.
+            <div className="card text-center py-12" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-3xl mb-2">📄</p>
+              <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>Henüz evrak yüklenmemiş</p>
+              <p className="text-sm mt-1">Yukarıdaki "Evrak Yükle" butonunu kullanın</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            <div className="card overflow-hidden">
               {person.documents.map(doc => (
-                <div key={doc.id} className="flex items-center justify-between px-5 py-4 gap-4">
+                <div key={doc.id} className="flex items-center justify-between px-5 py-4 gap-4"
+                  style={{ borderBottom: '1px solid var(--card-border)' }}>
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-2xl shrink-0">{fileIcon(doc.contentType)}</span>
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-800 truncate">{doc.fileName}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{doc.fileName}</div>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                         {formatBytes(doc.fileSize)} · {new Date(doc.uploadedAt).toLocaleDateString('tr-TR')} · {doc.uploadedByName}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button onClick={() => handleDownload(doc)}
-                      className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">İndir</button>
+                    <button onClick={() => handleDownload(doc)} className="btn-secondary" style={{ padding: '5px 12px', fontSize: '12px' }}>İndir</button>
                     <button onClick={() => handleDeleteDoc(doc.id)}
-                      className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50">Sil</button>
+                      className="text-xs px-3 py-1.5 rounded-lg transition-colors text-red-500 hover:text-red-600"
+                      style={{ border: '1px solid rgba(239,68,68,0.3)' }}>Sil</button>
                   </div>
                 </div>
               ))}
@@ -620,42 +634,40 @@ export default function PersonDetail() {
       {tab === 'tasks' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-base font-semibold text-gray-700">Görevler</h2>
-            <button onClick={() => setShowTaskForm(!showTaskForm)}
-              className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700">
+            <h3 className="font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em' }}>Görevler</h3>
+            <button onClick={() => setShowTaskForm(!showTaskForm)} className="btn-primary">
               + Görev Ekle
             </button>
           </div>
 
           {showTaskForm && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+            <div className="card p-5 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Başlık</label>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Başlık</label>
                   <input value={taskForm.title}
                     onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
                     placeholder="Görev başlığı..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                    className="input-base" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Hedef Tarih</label>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Hedef Tarih</label>
                   <input type="date" value={taskForm.assignedDate}
                     onChange={e => setTaskForm(p => ({ ...p, assignedDate: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                    className="input-base" />
                 </div>
                 <div className="md:col-span-3">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Açıklama</label>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
                   <input value={taskForm.description}
                     onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
                     placeholder="Opsiyonel açıklama..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                    className="input-base" />
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowTaskForm(false)}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
+                <button onClick={() => setShowTaskForm(false)} className="btn-secondary">İptal</button>
                 <button onClick={handleAddTask} disabled={addingTask || !taskForm.title}
-                  className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                  className="btn-primary disabled:opacity-50">
                   {addingTask ? 'Ekleniyor...' : 'Ekle'}
                 </button>
               </div>
@@ -663,24 +675,26 @@ export default function PersonDetail() {
           )}
 
           {!tasks.length ? (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
-              Henüz görev eklenmemiş.
+            <div className="card text-center py-12" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-3xl mb-2">✅</p>
+              <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>Bu kişiye atanmış görev yok</p>
+              <p className="text-sm mt-1">Yukarıdaki "Görev Ekle" butonunu kullanın</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            <div className="card overflow-hidden">
               {tasks.map(task => (
-                <div key={task.id} className="flex items-center justify-between px-5 py-4 gap-4">
+                <div key={task.id} className="flex items-center justify-between px-5 py-4 gap-4"
+                  style={{ borderBottom: '1px solid var(--card-border)' }}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      task.status === 'Completed' ? 'bg-green-500' : 'bg-amber-400'
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${
+                      task.status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-400'
                     }`} />
                     <div className="min-w-0">
-                      <div className={`text-sm font-medium ${
-                        task.status === 'Completed' ? 'line-through text-gray-400' : 'text-gray-800'
-                      }`}>{task.title}</div>
-                      {task.description && <div className="text-xs text-gray-400 truncate">{task.description}</div>}
+                      <div className={`text-sm font-medium ${task.status === 'Completed' ? 'line-through opacity-50' : ''}`}
+                        style={{ color: 'var(--text-primary)' }}>{task.title}</div>
+                      {task.description && <div className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{task.description}</div>}
                       {task.assignedDate && (
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           Hedef: {new Date(task.assignedDate).toLocaleDateString('tr-TR')}
                         </div>
                       )}
@@ -689,12 +703,14 @@ export default function PersonDetail() {
                   <div className="flex gap-2 shrink-0">
                     {task.status !== 'Completed' && (
                       <button onClick={() => handleCompleteTask(task.id)}
-                        className="px-3 py-1.5 text-xs border border-green-200 text-green-700 rounded-lg hover:bg-green-50">
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                        style={{ border: '1px solid rgba(16,185,129,0.3)' }}>
                         Tamamla
                       </button>
                     )}
                     <button onClick={() => handleDeleteTask(task.id)}
-                      className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50">Sil</button>
+                      className="text-xs px-3 py-1.5 rounded-lg text-red-500 hover:text-red-600 transition-colors"
+                      style={{ border: '1px solid rgba(239,68,68,0.3)' }}>Sil</button>
                   </div>
                 </div>
               ))}
@@ -706,35 +722,35 @@ export default function PersonDetail() {
       {/* ── HESAP (Admin only) ── */}
       {tab === 'account' && isAdmin && (
         <div className="space-y-4">
-          <h2 className="text-base font-semibold text-gray-700">Kullanıcı Hesabı</h2>
+          <h3 className="font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em' }}>Kullanıcı Hesabı</h3>
 
           {accountLoading ? (
-            <div className="text-gray-400 text-sm">Yükleniyor...</div>
+            <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Yükleniyor...</div>
           ) : account ? (
             <div className="space-y-4">
               {/* Account Info */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="card p-5">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Kullanıcı Adı</div>
-                    <div className="text-gray-800 font-medium">{account.username}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>Kullanıcı Adı</div>
+                    <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{account.username}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Email (Giriş)</div>
-                    <div className="text-gray-800">{account.email}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>Email (Giriş)</div>
+                    <div style={{ color: 'var(--text-secondary)' }}>{account.email}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Rol</div>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      account.role === 'Admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
+                    <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>Rol</div>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      account.role === 'Admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                     }`}>
                       {account.role === 'Admin' ? 'Yönetici' : 'Kullanıcı'}
                     </span>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Durum</div>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      account.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>Durum</div>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      account.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}>
                       {account.isActive ? 'Aktif' : 'Pasif'}
                     </span>
@@ -743,11 +759,11 @@ export default function PersonDetail() {
 
                 <div className="flex gap-2 mt-5 flex-wrap items-center">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Rol</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Rol Değiştir</label>
                     <select
                       value={account.role}
                       onChange={e => handleSetRole(e.target.value)}
-                      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      className="input-base" style={{ width: 'auto' }}
                     >
                       <option value="User">Normal</option>
                       <option value="Manager">Yetkili</option>
@@ -755,20 +771,21 @@ export default function PersonDetail() {
                     </select>
                   </div>
                   <button onClick={handleToggleActive}
-                    className={`px-4 py-2 text-sm rounded-lg ${
+                    className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                       account.isActive
-                        ? 'border border-red-200 text-red-600 hover:bg-red-50'
-                        : 'border border-green-200 text-green-700 hover:bg-green-50'
-                    }`}>
+                        ? 'text-red-500 hover:text-red-600'
+                        : 'text-emerald-600 hover:text-emerald-700'
+                    }`}
+                    style={{ border: `1px solid ${account.isActive ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
                     {account.isActive ? 'Hesabı Devre Dışı Bırak' : 'Hesabı Aktifleştir'}
                   </button>
                 </div>
               </div>
 
               {/* Reset Password */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Şifre Sıfırlama</h3>
-                <p className="text-xs text-gray-500 mb-3">
+              <div className="card p-5">
+                <h3 className="font-semibold text-xs uppercase tracking-wide mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em' }}>Şifre Sıfırlama</h3>
+                <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
                   Admin olarak şifre belirleyebilir veya kullanıcıya göndermek için tek kullanımlık OTP kodu üretebilirsiniz. Şifreler şifrelenmiş saklanır, eski şifre görüntülenemez.
                 </p>
                 <form onSubmit={handleResetPassword} className="flex gap-2 mb-3">
@@ -777,15 +794,14 @@ export default function PersonDetail() {
                     value={newPwd}
                     onChange={e => setNewPwd(e.target.value)}
                     placeholder="Yeni şifre (min. 6 karakter)"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="input-base flex-1"
                   />
-                  <button type="submit" disabled={resettingPwd}
-                    className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                  <button type="submit" disabled={resettingPwd} className="btn-primary disabled:opacity-50">
                     {resettingPwd ? '...' : 'Sıfırla'}
                   </button>
                 </form>
                 <button onClick={handleGenerateOtp}
-                  className="text-sm text-blue-600 hover:underline">
+                  className="text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }}>
                   Tek kullanımlık OTP kodu üret (kullanıcıya ilet)
                 </button>
                 {generatedOtp && (
@@ -799,42 +815,36 @@ export default function PersonDetail() {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <p className="text-gray-500 text-sm mb-4">Bu kişiye bağlı bir kullanıcı hesabı yok.</p>
+            <div className="card p-6">
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Bu kişiye bağlı bir kullanıcı hesabı yok.</p>
               {!showCreateAccount ? (
-                <button onClick={() => setShowCreateAccount(true)}
-                  className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700">
+                <button onClick={() => setShowCreateAccount(true)} className="btn-primary">
                   + Hesap Oluştur
                 </button>
               ) : (
                 <form onSubmit={handleCreateAccount} className="space-y-3 max-w-sm">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Kullanıcı Adı</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Kullanıcı Adı</label>
                     <input value={accountForm.username}
                       onChange={e => setAccountForm(p => ({ ...p, username: e.target.value }))}
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                      required className="input-base" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Giriş Email'i</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Giriş Email'i</label>
                     <input type="email" value={accountForm.email}
                       onChange={e => setAccountForm(p => ({ ...p, email: e.target.value }))}
                       placeholder={person.email || ''}
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                      required className="input-base" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Şifre</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Şifre</label>
                     <input type="password" value={accountForm.password}
                       onChange={e => setAccountForm(p => ({ ...p, password: e.target.value }))}
-                      required minLength={6}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                      required minLength={6} className="input-base" />
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setShowCreateAccount(false)}
-                      className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
-                    <button type="submit" disabled={creatingAccount}
-                      className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                    <button type="button" onClick={() => setShowCreateAccount(false)} className="btn-secondary">İptal</button>
+                    <button type="submit" disabled={creatingAccount} className="btn-primary disabled:opacity-50">
                       {creatingAccount ? 'Oluşturuluyor...' : 'Oluştur'}
                     </button>
                   </div>
@@ -844,6 +854,16 @@ export default function PersonDetail() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title="Emin misiniz?"
+        message={confirmAction?.label}
+        confirmLabel="Sil"
+        variant="danger"
+        onConfirm={async () => { await confirmAction?.onConfirm(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

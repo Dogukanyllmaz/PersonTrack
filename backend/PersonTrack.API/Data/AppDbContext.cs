@@ -27,6 +27,9 @@ public class AppDbContext : DbContext
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -231,6 +234,23 @@ public class AppDbContext : DbContext
         {
             e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => r.Token).IsUnique();
+        });
+
+        modelBuilder.Entity<ConversationParticipant>(e =>
+        {
+            e.HasOne(cp => cp.Conversation).WithMany(c => c.Participants)
+             .HasForeignKey(cp => cp.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(cp => cp.User).WithMany()
+             .HasForeignKey(cp => cp.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(cp => new { cp.ConversationId, cp.UserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<Message>(e =>
+        {
+            e.HasOne(m => m.Conversation).WithMany(c => c.Messages)
+             .HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.Sender).WithMany()
+             .HasForeignKey(m => m.SenderId).OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

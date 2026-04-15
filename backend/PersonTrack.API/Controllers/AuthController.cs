@@ -87,6 +87,27 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse(user.Id, user.Username, user.Email, user.Role, ""));
     }
 
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await _db.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(req.Username))
+            return BadRequest(new { message = "Kullanıcı adı boş olamaz." });
+
+        var usernameExists = await _db.Users
+            .AnyAsync(u => u.Username == req.Username.Trim() && u.Id != userId);
+        if (usernameExists)
+            return BadRequest(new { message = "Bu kullanıcı adı zaten kullanılıyor." });
+
+        user.Username = req.Username.Trim();
+        await _db.SaveChangesAsync();
+        return Ok(new AuthResponse(user.Id, user.Username, user.Email, user.Role, ""));
+    }
+
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)

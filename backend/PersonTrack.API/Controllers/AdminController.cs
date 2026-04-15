@@ -16,11 +16,19 @@ public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly TokenService _tokenService;
+    private readonly NotificationService _notif;
+    private readonly ActivityLogService _audit;
 
-    public AdminController(AppDbContext db, TokenService tokenService)
+    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private string CurrentUsername => User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("username") ?? "Admin";
+
+    public AdminController(AppDbContext db, TokenService tokenService,
+        NotificationService notif, ActivityLogService audit)
     {
         _db = db;
         _tokenService = tokenService;
+        _notif = notif;
+        _audit = audit;
     }
 
     [HttpGet("users")]
@@ -46,54 +54,96 @@ public class AdminController : ControllerBase
 
         var user = new User
         {
-            Username = req.Username,
-            Email = req.Email,
+            Username     = req.Username,
+            Email        = req.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-            Role = "User"
+            Role         = "User"
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+
+        // Admin bildirimi — tüm adminler yeni kullanıcıdan haberdar olsun
+        await _notif.CreateForAllAdminsAsync(
+            "Yeni Kullanıcı Oluşturuldu",
+            $"{CurrentUsername} tarafından '{req.Username}' ({req.Email}) hesabı oluşturuldu.",
+            type: "system", link: "/admin");
+
         return Ok(new { user.Id, user.Username, user.Email, user.Role });
     }
 
     [HttpPut("users/{id}/role")]
     public async Task<IActionResult> SetRole(int id, [FromBody] string role)
     {
-        if (role != "Admin" && role != "Manager" && role != "User")
+        if (role is not ("Admin" or "Manager" or "User"))
             return BadRequest(new { message = "Geçersiz rol. 'Admin', 'Manager' veya 'User' olmalı." });
 
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
-        user.Role = role;
+
+        var oldRole = user.Role;
+        user.Role   = role;
         await _db.SaveChangesAsync();
+
+        // Kritik: rol değişikliği → tüm adminlere bildir
+        await _notif.CreateForAllAdminsAsync(
+            "Kullanıcı Rolü Değiştirildi",
+            $"{CurrentUsername} → '{user.Username}' kullanıcısının rolü {oldRole} → {role} olarak değiştirildi.",
+            type: "system", link: "/admin");
+
+        await _audit.LogAsync(CurrentUserId, "User", user.Id, user.Username, "SetUserRole",
+            $"Rol: {oldRole} → {role}",
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            HttpContext.Request.Headers.UserAgent.ToString().Take(300).ToString());
+
         return Ok(new { user.Id, user.Role });
     }
 
     [HttpPut("users/{id}/toggle-active")]
     public async Task<IActionResult> ToggleActive(int id)
     {
-        var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        if (id == currentUserId)
+        if (id == CurrentUserId)
             return BadRequest(new { message = "Kendi hesabınızı devre dışı bırakamazsınız." });
 
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
+
         user.IsActive = !user.IsActive;
         await _db.SaveChangesAsync();
+
+        var stateLabel = user.IsActive ? "aktifleştirildi" : "devre dışı bırakıldı";
+        await _notif.CreateForAllAdminsAsync(
+            $"Kullanıcı {stateLabel.ToUpper()}",
+            $"{CurrentUsername} → '{user.Username}' hesabı {stateLabel}.",
+            type: "system", link: "/admin");
+
         return Ok(new { user.Id, user.IsActive });
     }
 
     [HttpDelete("users/{id}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
-        var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        if (id == currentUserId)
+        if (id == CurrentUserId)
             return BadRequest(new { message = "Kendi hesabınızı silemezsiniz." });
 
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
+
+        var deletedName  = user.Username;
+        var deletedEmail = user.Email;
+
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();
+
+        // En kritik işlem: kullanıcı silme
+        await _notif.CreateForAllAdminsAsync(
+            "Kullanıcı Silindi",
+            $"{CurrentUsername} → '{deletedName}' ({deletedEmail}) hesabı kalıcı olarak silindi.",
+            type: "system", link: "/admin");
+
+        await _audit.LogAsync(CurrentUserId, "User", id, deletedName, "Delete",
+            $"Silinen: {deletedEmail}",
+            HttpContext.Connection.RemoteIpAddress?.ToString());
+
         return NoContent();
     }
 
@@ -102,16 +152,20 @@ public class AdminController : ControllerBase
     {
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         await _db.SaveChangesAsync();
+
+        await _notif.CreateForAllAdminsAsync(
+            "Şifre Sıfırlandı",
+            $"{CurrentUsername} → '{user.Username}' kullanıcısının şifresi admin tarafından sıfırlandı.",
+            type: "system", link: "/admin");
+
         return Ok(new { message = "Şifre sıfırlandı." });
     }
 
-    // ── Person-User Linking ────────────────────────────────────────────
+    // ── Person-User Linking ────────────────────────────────────────────────
 
-    /// <summary>
-    /// Bir kişi kartı için yeni kullanıcı hesabı oluşturur ve o kişiyle ilişkilendirir.
-    /// </summary>
     [HttpPost("persons/{personId}/create-account")]
     public async Task<IActionResult> CreateAccountForPerson(int personId, [FromBody] RegisterRequest req)
     {
@@ -126,20 +180,17 @@ public class AdminController : ControllerBase
 
         var user = new User
         {
-            Username = req.Username,
-            Email = req.Email,
+            Username     = req.Username,
+            Email        = req.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-            Role = "User",
-            PersonId = personId
+            Role         = "User",
+            PersonId     = personId
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
         return Ok(new { user.Id, user.Username, user.Email, user.Role, user.PersonId });
     }
 
-    /// <summary>
-    /// Mevcut bir kullanıcı hesabını bir kişiyle ilişkilendirir.
-    /// </summary>
     [HttpPut("users/{userId}/link-person/{personId}")]
     public async Task<IActionResult> LinkPersonToUser(int userId, int personId)
     {
@@ -157,9 +208,6 @@ public class AdminController : ControllerBase
         return Ok(new { user.Id, user.PersonId });
     }
 
-    /// <summary>
-    /// Kullanıcı-kişi ilişkisini kaldırır.
-    /// </summary>
     [HttpPut("users/{userId}/unlink-person")]
     public async Task<IActionResult> UnlinkPerson(int userId)
     {
@@ -170,9 +218,6 @@ public class AdminController : ControllerBase
         return Ok(new { user.Id, user.PersonId });
     }
 
-    /// <summary>
-    /// Belirli bir kişiye bağlı kullanıcı hesabını döndürür.
-    /// </summary>
     [HttpGet("persons/{personId}/account")]
     public async Task<IActionResult> GetPersonAccount(int personId)
     {
@@ -185,11 +230,8 @@ public class AdminController : ControllerBase
         return Ok(user);
     }
 
-    // ── Password Reset Tokens (admin görünümü) ─────────────────────────
+    // ── Password Reset Tokens ──────────────────────────────────────────────
 
-    /// <summary>
-    /// Bekleyen şifre sıfırlama isteklerini listeler.
-    /// </summary>
     [HttpGet("reset-tokens")]
     public async Task<IActionResult> GetResetTokens()
     {
@@ -199,27 +241,21 @@ public class AdminController : ControllerBase
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new
             {
-                t.Id,
-                t.UserId,
-                UserEmail = t.User != null ? t.User.Email : "",
-                UserName = t.User != null ? t.User.Username : "",
-                t.CreatedAt,
-                t.ExpiresAt
+                t.Id, t.UserId,
+                UserEmail = t.User != null ? t.User.Email    : "",
+                UserName  = t.User != null ? t.User.Username : "",
+                t.CreatedAt, t.ExpiresAt
             })
             .ToListAsync();
         return Ok(tokens);
     }
 
-    /// <summary>
-    /// Admin, bir kullanıcı için tek kullanımlık OTP kodu üretir (şifre sıfırlama).
-    /// </summary>
     [HttpPost("users/{userId}/generate-otp")]
     public async Task<IActionResult> GenerateOtp(int userId)
     {
         var user = await _db.Users.FindAsync(userId);
         if (user == null) return NotFound();
 
-        // Eskilerini geçersiz kıl
         var old = await _db.PasswordResetTokens
             .Where(t => t.UserId == userId && !t.IsUsed)
             .ToListAsync();
@@ -228,14 +264,12 @@ public class AdminController : ControllerBase
         var otp = Random.Shared.Next(100000, 999999).ToString();
         _db.PasswordResetTokens.Add(new PasswordResetToken
         {
-            UserId = userId,
-            Token = Guid.NewGuid().ToString("N"),
-            OtpCode = BCrypt.Net.BCrypt.HashPassword(otp),
+            UserId    = userId,
+            Token     = Guid.NewGuid().ToString("N"),
+            OtpCode   = BCrypt.Net.BCrypt.HashPassword(otp),
             ExpiresAt = DateTime.UtcNow.AddHours(24)
         });
         await _db.SaveChangesAsync();
-
-        // OTP'yi açık metin olarak döndür — admin kullanıcıya iletecek
         return Ok(new { otp, expiresIn = "24 saat", userEmail = user.Email });
     }
 }

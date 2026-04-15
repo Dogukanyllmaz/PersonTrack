@@ -211,63 +211,139 @@ public class MeetingsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id}/notes/import")]
-    public async Task<IActionResult> ImportNotes(int id, IFormFile file)
+    /// <summary>
+    /// Parse an Excel file and return preview rows with person name matches — nothing is saved.
+    /// </summary>
+    [HttpPost("{id}/notes/preview")]
+    public async Task<IActionResult> PreviewNotes(int id, IFormFile file)
     {
         if (!await _db.Meetings.AnyAsync(m => m.Id == id)) return NotFound();
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Dosya boş." });
 
         using var stream = file.OpenReadStream();
-        List<string[]> rows;
-        try { rows = ExcelHelper.ReadXlsx(stream); }
+        List<string[]> excelRows;
+        try { excelRows = ExcelHelper.ReadXlsx(stream); }
         catch { return BadRequest(new { message = "Geçersiz Excel dosyası." }); }
 
-        var added = 0;
-        var errors = new List<string>();
+        var allPersons = await _db.Persons
+            .Select(p => new { p.Id, p.FirstName, p.LastName })
+            .ToListAsync();
+
+        var preview = new List<object>();
+
+        for (int i = 0; i < excelRows.Count; i++)
+        {
+            var row = excelRows[i];
+            var rawName = (row.Length > 0 ? row[0] : "")?.Trim() ?? "";
+            var content = (row.Length > 1 ? row[1] : "")?.Trim() ?? "";
+            var minuteMarker = (row.Length > 2 ? row[2] : "")?.Trim() ?? "";
+
+            var matches = new List<object>();
+            if (!string.IsNullOrWhiteSpace(rawName))
+            {
+                // Exact full-name match first
+                var exact = allPersons
+                    .Where(p => $"{p.FirstName} {p.LastName}"
+                        .Equals(rawName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (exact.Count > 0)
+                {
+                    matches = exact.Select(p => (object)new
+                    {
+                        id = p.Id,
+                        fullName = $"{p.FirstName} {p.LastName}"
+                    }).ToList();
+                }
+                else
+                {
+                    // Fuzzy: all search words present anywhere in full name
+                    var parts = rawName.ToLower()
+                        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    matches = allPersons
+                        .Where(p =>
+                        {
+                            var full = $"{p.FirstName} {p.LastName}".ToLower();
+                            return parts.All(part => full.Contains(part));
+                        })
+                        .Select(p => (object)new
+                        {
+                            id = p.Id,
+                            fullName = $"{p.FirstName} {p.LastName}"
+                        }).ToList();
+                }
+            }
+
+            preview.Add(new
+            {
+                rowNumber = i + 2,
+                rawName,
+                content,
+                minuteMarker,
+                matches,
+                // Auto-resolve when exactly 1 match
+                resolvedPersonId = matches.Count == 1
+                    ? (int?)((dynamic)matches[0]).id
+                    : null
+            });
+        }
+
+        return Ok(new { rows = preview });
+    }
+
+    /// <summary>
+    /// Save pre-reviewed import rows (with resolved personIds) to the database.
+    /// </summary>
+    [HttpPost("{id}/notes/import-confirmed")]
+    public async Task<IActionResult> ImportConfirmed(int id,
+        [FromBody] List<ConfirmedNoteRowDto> rows)
+    {
+        if (!await _db.Meetings.AnyAsync(m => m.Id == id)) return NotFound();
+        if (rows == null || rows.Count == 0)
+            return BadRequest(new { message = "Kaydedilecek satır yok." });
+
+        var currentCount = await _db.MeetingNotes.CountAsync(n => n.MeetingId == id);
 
         for (int i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            if (row.Length < 2 || string.IsNullOrWhiteSpace(row[1]))
-            {
-                errors.Add($"Satır {i + 2}: İçerik zorunlu.");
-                continue;
-            }
-
-            int? personId = null;
-            if (!string.IsNullOrWhiteSpace(row[0]) && int.TryParse(row[0], out int pid))
-            {
-                if (await _db.Persons.AnyAsync(p => p.Id == pid))
-                    personId = pid;
-            }
+            if (string.IsNullOrWhiteSpace(row.Content)) continue;
 
             TimeSpan? marker = null;
-            if (row.Length > 2 && !string.IsNullOrWhiteSpace(row[2]))
-                TimeSpan.TryParse(row[2], out var ts2);
+            if (!string.IsNullOrWhiteSpace(row.MinuteMarker) &&
+                TimeSpan.TryParse(row.MinuteMarker, out var ts))
+                marker = ts;
 
             _db.MeetingNotes.Add(new MeetingNote
             {
                 MeetingId = id,
-                PersonId = personId,
-                Content = row[1],
+                PersonId = row.PersonId,
+                Content = row.Content,
                 MinuteMarker = marker,
-                OrderIndex = i
+                OrderIndex = currentCount + i
             });
-            added++;
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { added, errors });
+        return Ok(new { added = rows.Count });
     }
 
     [HttpGet("notes-template")]
     public IActionResult DownloadNotesTemplate()
     {
-        var headers = new[] { "KişiID", "İçerik", "DakikaMarker (HH:mm:ss)" };
-        var sample = new[] { new[] { "1", "Toplantı açılış konuşması yapıldı.", "00:00:00" } };
-        var bytes = ExcelHelper.CreateXlsx(headers, sample);
-        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "toplanti_not_sablonu.xlsx");
+        var headers = new[] { "Ad Soyad", "İçerik", "Dakika (HH:mm:ss)" };
+        var sample = new[]
+        {
+            new[] { "Ahmet Yılmaz", "Toplantı açılış konuşması yapıldı.", "00:00:00" },
+            new[] { "Fatma Kaya",   "Proje güncellemesi paylaşıldı.",     "00:05:30" },
+            new[] { "",             "Genel not — kişi ataması yok.",       "00:10:00" },
+        };
+        var widths = new double[] { 28, 55, 22 };
+        var bytes = ExcelHelper.CreateXlsx(headers, sample, widths);
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "toplanti_not_sablonu.xlsx");
     }
 
     // ── Documents ──────────────────────────────────────────────────────

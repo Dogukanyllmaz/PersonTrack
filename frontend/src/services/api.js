@@ -86,6 +86,7 @@ export const refreshTokenCall = (refreshToken) => api.post('/auth/refresh', { re
 export const logoutApi = (refreshToken) => api.post('/auth/logout', { refreshToken });
 export const getMe = () => api.get('/auth/me');
 export const changePassword = (data) => api.post('/auth/change-password', data);
+export const updateProfile = (data) => api.put('/auth/profile', data);
 
 // Persons
 export const getPersons = (search) => api.get('/persons', { params: { search } });
@@ -118,6 +119,13 @@ export const importMeetingNotes = (meetingId, file) => {
   form.append('file', file);
   return api.post(`/meetings/${meetingId}/notes/import`, form);
 };
+export const previewMeetingNotes = (meetingId, file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post(`/meetings/${meetingId}/notes/preview`, form);
+};
+export const importConfirmedNotes = (meetingId, rows) =>
+  api.post(`/meetings/${meetingId}/notes/import-confirmed`, rows);
 export const downloadNotesTemplate = () =>
   api.get('/meetings/notes-template', { responseType: 'blob' });
 
@@ -222,9 +230,48 @@ export const deleteReminder = (id) => api.delete(`/reminders/${id}`);
 
 // Activity log
 export const getActivityLog = (params) => api.get('/activitylog', { params });
+export const getActivityLogStats = (days = 7) => api.get('/activitylog/stats', { params: { days } });
+export const getActivityLogUsers = () => api.get('/activitylog/users');
+
+// Messages
+export const getConversations = () => api.get('/messages/conversations');
+export const startConversation = (targetUserId) => api.post('/messages/conversations', targetUserId, { headers: { 'Content-Type': 'application/json' } });
+export const getMessages = (conversationId, params) => api.get(`/messages/conversations/${conversationId}/messages`, { params });
+export const deleteMessage = (messageId) => api.delete(`/messages/${messageId}`);
+export const getMessageUnreadCount = () => api.get('/messages/unread-count');
+export const getMessageUsers = () => api.get('/messages/users');
+export const deleteConversation = (conversationId) => api.delete(`/messages/conversations/${conversationId}`);
+
+// System monitoring
+export const getSystemMetrics = () => api.get('/system/metrics');
 
 // Global search
 export const globalSearch = (q) => api.get('/search', { params: { q } });
+
+// ── Error message helper ───────────────────────────────────────────────────────
+export function getErrorMessage(error) {
+  // Server returned a structured message
+  const serverMsg = error?.response?.data?.message
+    || error?.response?.data?.title
+    || error?.response?.data?.detail;
+  if (serverMsg && typeof serverMsg === 'string' && serverMsg.length < 300) return serverMsg;
+
+  // Map HTTP status codes to Turkish messages
+  switch (error?.response?.status) {
+    case 400: return 'Girilen bilgiler geçersiz. Lütfen formu kontrol edin.';
+    case 401: return 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
+    case 403: return 'Bu işlem için yetkiniz bulunmuyor.';
+    case 404: return 'İstenen kayıt bulunamadı.';
+    case 409: return 'Bu kayıt zaten mevcut.';
+    case 413: return 'Dosya boyutu çok büyük.';
+    case 422: return 'Girilen veriler işlenemedi. Lütfen kontrol edin.';
+    case 429: return 'Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.';
+    case 500: return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+    case 502:
+    case 503: return 'Sunucu şu anda yanıt veremiyor. Lütfen daha sonra deneyin.';
+    default:  return error?.message || 'Beklenmedik bir hata oluştu.';
+  }
+}
 
 // Export
 export const exportPersons = () => api.get('/export/persons', { responseType: 'blob' });
