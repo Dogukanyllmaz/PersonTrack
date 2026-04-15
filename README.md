@@ -72,27 +72,55 @@ Bu sistemin temel amacı:
 
 ## 🖼️ Ekran Görüntüleri
 
+### 🚀 LOGIN
+
+![Login](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOGIN.png)
+
+---
+
 ### 📊 Dashboard
 
-![Dashboard](docs/images/dashboard.png)
+![Dashboard](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/DASHBOARD.png)
+
+---
+
+### ✅ TASKS
+
+![TASKS](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/TASKS.png)
 
 ---
 
 ### 📅 Toplantılar
 
-![Meetings](docs/images/meetings.png)
+![Meetings](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETİNG.png)
+
+![Meetings Detail](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/MEETINGDETAILS.png)
 
 ---
 
 ### 🕒 Zaman Tüneli
 
-![Timeline](docs/images/timeline.png)
+![Timeline](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/CHRONO.png)
 
 ---
 
 ### 👤 Kişi Detayı
+![Person](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSON.png)
 
-![Person Detail](docs/images/person.png)
+![Person Detail](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/PERSONDETAILS.png)
+
+---
+
+### 🔔 Hatırlatıcı
+![Reminder](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/REMINDER.png)
+
+---
+
+### ADMIN
+
+![ADMIN](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/ADMIN.png)
+
+![LOG](https://github.com/Dogukanyllmaz/PersonTrack/tree/main/src/LOG.png)
 
 ---
 
