@@ -145,7 +145,7 @@ Proje kapsamında kapsamlı unit testler yazılmıştır.
 * Entity Framework Core
 * SQL Server
 * RESTful API
-* (Frontend: Modern UI - framework belirtilebilir)
+* (Frontend: Modern UI - react)
 
 ---
 
