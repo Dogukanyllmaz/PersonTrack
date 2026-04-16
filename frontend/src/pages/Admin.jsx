@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
 import { getUsers, createUser, setUserRole, toggleUserActive, deleteUser, resetPassword } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import Modal from '../components/Modal';
 
 export default function Admin() {
   const { user: currentUser } = useAuth();
+  const { enabledLangs, saveEnabledLangs, t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(null); // user id
   const [createForm, setCreateForm] = useState({ username: '', email: '', password: '' });
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const toggleLang = (code) => {
+    if (enabledLangs.includes(code)) {
+      saveEnabledLangs(enabledLangs.filter(l => l !== code));
+    } else {
+      saveEnabledLangs([...enabledLangs, code]);
+    }
+  };
 
   const load = async () => {
     const res = await getUsers();
@@ -143,6 +153,52 @@ export default function Admin() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Language Settings */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+          {t('langSettings')}
+        </h2>
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)' }}>
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--card-border)' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('langDesc')}
+            </p>
+          </div>
+          <div className="divide-y" style={{ '--tw-divide-color': 'var(--card-border)' }}>
+            {SUPPORTED_LANGUAGES.map(l => {
+              const isEnabled = enabledLangs.includes(l.code);
+              const isLast = enabledLangs.length === 1 && isEnabled;
+              return (
+                <div key={l.code} className="flex items-center justify-between px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{l.flag}</span>
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{l.label}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{l.code.toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => !isLast && toggleLang(l.code)}
+                    title={isLast ? 'En az bir dil aktif olmalı' : ''}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: isLast ? 'not-allowed' : 'pointer',
+                      background: isEnabled ? 'var(--accent)' : 'rgba(0,0,0,0.12)',
+                      transition: 'background 0.2s', position: 'relative', opacity: isLast ? 0.5 : 1,
+                    }}
+                  >
+                    <span style={{
+                      display: 'block', width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 3, left: isEnabled ? 23 : 3, transition: 'left 0.2s',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Create User Modal */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import {
   getUnreadCount, getNotifications, markAllNotificationsRead,
   markNotificationRead, globalSearch, getMessageUnreadCount
@@ -21,7 +22,14 @@ const SvgIcon = ({ d, extra, size = 18, fill = 'none', strokeW = 1.85 }) => (
 
 /* Navigation icons */
 const HomeIcon     = () => <SvgIcon d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" extra="M9 22V12h6v10" />;
-const PeopleIcon   = () => <SvgIcon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" extra="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />;
+const PeopleIcon   = () => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={1.85} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+  </svg>
+);
 const CalIcon      = () => <SvgIcon d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />;
 const CalGridIcon  = () => <SvgIcon d="M3 4h18v18H3V4z" extra="M8 2v4M16 2v4M3 10h18" />;
 const CheckIcon    = () => <SvgIcon d="M9 11l3 3L22 4" extra="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />;
@@ -66,30 +74,30 @@ const NOTIF_CFG = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   NAVIGATION SECTIONS
+   NAVIGATION SECTIONS (dynamic — uses t() for translations)
 ══════════════════════════════════════════════════════════════ */
-const NAV_SECTIONS = [
+const buildNavSections = (t) => [
   {
     label: null,
     items: [
-      { to: '/dashboard',  label: 'Dashboard',      Icon: HomeIcon,     show: () => true },
-      { to: '/persons',    label: 'Kişiler',         Icon: PeopleIcon,   show: (a,m,c) => c },
-      { to: '/meetings',   label: 'Toplantılar',     Icon: CalIcon,      show: () => true },
-      { to: '/calendar',   label: 'Takvim',          Icon: CalGridIcon,  show: () => true },
-      { to: '/tasks',      label: 'Görevler',        Icon: CheckIcon,    show: (a,m,c) => c },
-      { to: '/tags',       label: 'Etiketler',       Icon: TagIcon,      show: (a,m,c) => c },
-      { to: '/timeline',   label: 'Zaman Tüneli',    Icon: TimelineIcon, show: () => true },
-      { to: '/reminders',  label: 'Hatırlatıcılar',  Icon: BellIcon,     show: () => true },
-      { to: '/messages',   label: 'Mesajlar',        Icon: ChatIcon,     show: () => true, badge: true },
+      { to: '/dashboard',  label: t('dashboard'),     Icon: HomeIcon,     show: () => true },
+      { to: '/persons',    label: t('persons'),        Icon: PeopleIcon,   show: (a,m,c) => c },
+      { to: '/meetings',   label: t('meetings'),       Icon: CalIcon,      show: () => true },
+      { to: '/calendar',   label: t('calendar'),       Icon: CalGridIcon,  show: () => true },
+      { to: '/tasks',      label: t('tasks'),          Icon: CheckIcon,    show: (a,m,c) => c },
+      { to: '/tags',       label: t('tags'),           Icon: TagIcon,      show: (a,m,c) => c },
+      { to: '/timeline',   label: t('timeline'),       Icon: TimelineIcon, show: () => true },
+      { to: '/reminders',  label: t('reminders'),      Icon: BellIcon,     show: () => true },
+      { to: '/messages',   label: t('messages'),       Icon: ChatIcon,     show: () => true, badge: true },
     ],
   },
   {
-    label: 'Yönetim',
+    label: t('management'),
     adminOnly: true,
     items: [
-      { to: '/monitor',      label: 'Sistem İzleme', Icon: MonitorIcon },
-      { to: '/activity-log', label: 'Aktivite',      Icon: LogIcon },
-      { to: '/admin',        label: 'Admin Panel',   Icon: GearIcon },
+      { to: '/monitor',      label: t('monitor'),      Icon: MonitorIcon },
+      { to: '/activity-log', label: t('activityLog'),  Icon: LogIcon },
+      { to: '/admin',        label: t('admin'),         Icon: GearIcon },
     ],
   },
 ];
@@ -100,17 +108,22 @@ const NAV_SECTIONS = [
 export default function Layout({ children }) {
   const { user, logout, isAdmin, isManager, canManage } = useAuth();
   const { isDark, toggle: toggleTheme } = useTheme();
+  const { lang, changeLang, t, enabledLangs } = useLanguage();
   const navigate = useNavigate();
 
   const [unreadCount, setUnreadCount]       = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [notifications, setNotifications]   = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [showLangMenu, setShowLangMenu]     = useState(false);
   const [searchQuery, setSearchQuery]       = useState('');
   const [searchResults, setSearchResults]   = useState([]);
   const [showSearch, setShowSearch]         = useState(false);
   const notifRef  = useRef(null);
   const searchRef = useRef(null);
+  const langRef   = useRef(null);
+
+  const NAV_SECTIONS = buildNavSections(t);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -141,6 +154,7 @@ export default function Layout({ children }) {
     const fn = (e) => {
       if (notifRef.current  && !notifRef.current.contains(e.target))  setShowNotifPanel(false);
       if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false);
+      if (langRef.current   && !langRef.current.contains(e.target))   setShowLangMenu(false);
     };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
@@ -344,7 +358,7 @@ export default function Layout({ children }) {
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--sidebar-text)'; }}
           >
             <LogoutIcon />
-            <span>Çıkış Yap</span>
+            <span>{t('logout')}</span>
           </button>
         </div>
       </aside>
@@ -376,7 +390,7 @@ export default function Layout({ children }) {
             <input
               type="text"
               value={searchQuery}
-              placeholder="Kişi, toplantı veya görev ara..."
+              placeholder={t('search')}
               onChange={e => { setSearchQuery(e.target.value); setShowSearch(true); }}
               onFocus={e => {
                 setShowSearch(true);
@@ -441,7 +455,7 @@ export default function Layout({ children }) {
             {showSearch && searchQuery.length >= 2 && searchResults.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 rounded-[14px] px-4 py-3 text-[12.5px] z-50 animate-slide-down"
                 style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', color: 'var(--text-secondary)', boxShadow: 'var(--shadow-card)' }}>
-                Sonuç bulunamadı
+                {t('noResult')}
               </div>
             )}
           </div>
@@ -449,9 +463,46 @@ export default function Layout({ children }) {
           {/* Actions */}
           <div className="ml-auto flex items-center gap-1">
             {/* Theme toggle */}
-            <TopbarBtn onClick={toggleTheme} title={isDark ? 'Açık mod' : 'Koyu mod'}>
+            <TopbarBtn onClick={toggleTheme} title={isDark ? t('lightMode') : t('darkMode')}>
               {isDark ? <SunIcon /> : <MoonIcon />}
             </TopbarBtn>
+
+            {/* Language switcher */}
+            {enabledLangs.length > 1 && (
+              <div className="relative" ref={langRef}>
+                <button
+                  onClick={() => setShowLangMenu(v => !v)}
+                  title={t('language')}
+                  className="icon-btn text-[11px] font-bold"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {SUPPORTED_LANGUAGES.find(l => l.code === lang)?.flag ?? '🌐'}
+                </button>
+                {showLangMenu && (
+                  <div className="absolute right-0 top-full mt-2 rounded-[13px] overflow-hidden z-50 animate-slide-down"
+                    style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-pop)', minWidth: '140px' }}>
+                    {SUPPORTED_LANGUAGES.filter(l => enabledLangs.includes(l.code)).map(l => (
+                      <button
+                        key={l.code}
+                        onClick={() => { changeLang(l.code); setShowLangMenu(false); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[12.5px] font-medium transition-colors"
+                        style={{
+                          color: lang === l.code ? 'var(--accent)' : 'var(--text-primary)',
+                          background: lang === l.code ? 'rgba(91,127,166,0.08)' : 'transparent',
+                          border: 'none', cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => { if (lang !== l.code) e.currentTarget.style.background = 'rgba(91,127,166,0.05)'; }}
+                        onMouseLeave={e => { if (lang !== l.code) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span className="text-base">{l.flag}</span>
+                        <span>{l.label}</span>
+                        {lang === l.code && <span className="ml-auto text-[10px]">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Notifications */}
             <div className="relative" ref={notifRef}>

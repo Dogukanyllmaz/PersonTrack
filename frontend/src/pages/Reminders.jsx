@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getReminders, createReminder, completeReminder, deleteReminder, getPersons, getMeetings } from '../services/api';
 import Modal from '../components/Modal';
+import { useLanguage } from '../context/LanguageContext';
 
 const emptyForm = {
   title: '', notes: '', reminderDate: '', isRecurring: false,
@@ -8,6 +9,7 @@ const emptyForm = {
 };
 
 export default function Reminders() {
+  const { t } = useLanguage();
   const [reminders, setReminders] = useState([]);
   const [persons, setPersons] = useState([]);
   const [meetings, setMeetings] = useState([]);
@@ -53,7 +55,7 @@ export default function Reminders() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Bu hatırlatıcıyı silmek istiyor musunuz?')) return;
+    if (!confirm(t('deleteReminder'))) return;
     await deleteReminder(id);
     await load();
   };
@@ -63,17 +65,17 @@ export default function Reminders() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Hatırlatıcılar</h2>
+        <h2 className="text-2xl font-bold text-gray-800">{t('pageReminders')}</h2>
         <button onClick={() => setShowForm(true)}
           className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
-          + Yeni Hatırlatıcı
+          + {t('addReminder')}
         </button>
       </div>
 
       {reminders.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border p-12 text-center text-gray-400">
           <p className="text-4xl mb-3">🔔</p>
-          <p>Aktif hatırlatıcı yok</p>
+          <p>{t('noReminders')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -104,9 +106,9 @@ export default function Reminders() {
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button onClick={() => handleComplete(r.id)}
-                    className="text-sm text-green-600 hover:text-green-800 font-medium">Tamamla</button>
+                    className="text-sm text-green-600 hover:text-green-800 font-medium">{t('taskDone')}</button>
                   <button onClick={() => handleDelete(r.id)}
-                    className="text-sm text-red-500 hover:text-red-700 font-medium">Sil</button>
+                    className="text-sm text-red-500 hover:text-red-700 font-medium">{t('delete')}</button>
                 </div>
               </div>
             </div>
@@ -115,20 +117,20 @@ export default function Reminders() {
       )}
 
       {showForm && (
-        <Modal title="Yeni Hatırlatıcı" onClose={() => setShowForm(false)}>
+        <Modal title={t('addReminder')} onClose={() => setShowForm(false)}>
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Başlık *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('reminderTitle')} *</label>
               <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} required
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Notlar</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('notes')}</label>
               <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tarih ve Saat *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('reminderDate')} *</label>
               <input type="datetime-local" value={form.reminderDate} onChange={e => setForm({...form, reminderDate: e.target.value})} required
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
             </div>
@@ -136,7 +138,7 @@ export default function Reminders() {
               <input type="checkbox" id="recurring" checked={form.isRecurring}
                 onChange={e => setForm({...form, isRecurring: e.target.checked})}
                 className="w-4 h-4 rounded" />
-              <label htmlFor="recurring" className="text-sm text-gray-700">Tekrarlayan hatırlatıcı</label>
+              <label htmlFor="recurring" className="text-sm text-gray-700">{t('repeat')}</label>
             </div>
             {form.isRecurring && (
               <div>
@@ -148,7 +150,7 @@ export default function Reminders() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Kişi (isteğe bağlı)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('personName')} ({t('note')})</label>
                 <select value={form.personId} onChange={e => setForm({...form, personId: e.target.value})}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
                   <option value="">Seçin...</option>
@@ -156,7 +158,7 @@ export default function Reminders() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Toplantı (isteğe bağlı)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('meetingTitle')} ({t('note')})</label>
                 <select value={form.meetingId} onChange={e => setForm({...form, meetingId: e.target.value})}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
                   <option value="">Seçin...</option>
@@ -166,7 +168,7 @@ export default function Reminders() {
             </div>
             <button type="submit" disabled={loading}
               className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
-              {loading ? 'Kaydediliyor...' : 'Kaydet'}
+              {loading ? t('loading') : t('save')}
             </button>
           </form>
         </Modal>

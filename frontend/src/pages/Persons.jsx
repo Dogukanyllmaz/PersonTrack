@@ -6,6 +6,7 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import Modal from '../components/Modal';
 import PhoneInput from '../components/PhoneInput';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -72,7 +73,7 @@ function SearchEmptyIcon() {
 }
 
 /* ── Memoized PersonCard ─────────────────────────────────────────────── */
-const PersonCard = memo(function PersonCard({ p, isSelected, onSelect, onNavigate, onDelete, isAdmin }) {
+const PersonCard = memo(function PersonCard({ p, isSelected, onSelect, onNavigate, onDelete, isAdmin, t }) {
   return (
     <div className={`card person-card group ${isSelected ? 'is-selected' : ''}`}
       style={{ animationFillMode: 'both' }}>
@@ -134,10 +135,10 @@ const PersonCard = memo(function PersonCard({ p, isSelected, onSelect, onNavigat
           <div className="mt-3 pt-3 flex items-center gap-3 text-xs"
             style={{ borderTop: '1px solid var(--card-border)', color: 'var(--text-tertiary)' }}>
             {p.relationships?.length > 0 && (
-              <span className="flex items-center gap-1.5 font-medium"><LinkIcon />{p.relationships.length} ilişki</span>
+              <span className="flex items-center gap-1.5 font-medium"><LinkIcon />{p.relationships.length} {t('personRelationships')}</span>
             )}
             {p.documents?.length > 0 && (
-              <span className="flex items-center gap-1.5 font-medium"><FileIcon />{p.documents.length} evrak</span>
+              <span className="flex items-center gap-1.5 font-medium"><FileIcon />{p.documents.length} {t('personDocuments')}</span>
             )}
           </div>
         )}
@@ -153,6 +154,7 @@ export default function Persons() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [persons, setPersons]           = useState([]);
   const [search, setSearch]             = useState('');
@@ -211,8 +213,8 @@ export default function Persons() {
   const handleSave = useCallback(async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!form.firstName?.trim()) newErrors.firstName = 'Ad zorunludur';
-    if (!form.lastName?.trim())  newErrors.lastName  = 'Soyad zorunludur';
+    if (!form.firstName?.trim()) newErrors.firstName = t('firstNameRequired');
+    if (!form.lastName?.trim())  newErrors.lastName  = t('lastNameRequired');
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
     setSaving(true);
@@ -244,7 +246,7 @@ export default function Persons() {
       setSelectedIds(new Set());
       setConfirmBulkDelete(false);
       await load(search);
-      toast.success(`${count} kişi silindi.`);
+      toast.success(`${count} ${t('personsDeleted')}.`);
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setBulkDeleting(false); }
   }, [selectedIds, load, search, toast]);
@@ -264,7 +266,7 @@ export default function Persons() {
     if (!file) return;
     try {
       const res = await importPersons(file);
-      toast.success(`${res.data.added} kişi eklendi.${res.data.errors.length ? ' Hatalar: ' + res.data.errors.join(', ') : ''}`);
+      toast.success(`${res.data.added} ${t('personsAdded')}.${res.data.errors.length ? ' Hatalar: ' + res.data.errors.join(', ') : ''}`);
       await load(search);
     } catch (err) { toast.error(getErrorMessage(err)); }
     e.target.value = '';
@@ -285,8 +287,8 @@ export default function Persons() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Kişiler</h1>
-          <p className="page-subtitle">{persons.length} kişi kayıtlı</p>
+          <h1 className="page-title">{t('pagePersons')}</h1>
+          <p className="page-subtitle">{persons.length} {t('personsRegistered')}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {isAdmin && (
@@ -295,11 +297,11 @@ export default function Persons() {
                 ↑ Import
                 <input type="file" accept=".xlsx" onChange={handleImport} className="hidden" />
               </label>
-              <Button variant="secondary" size="md" onClick={handleTemplate}>↓ Şablon</Button>
+              <Button variant="secondary" size="md" onClick={handleTemplate}>↓ {t('template')}</Button>
             </>
           )}
           <Button variant="secondary" size="md" onClick={handleExport}>↓ Export</Button>
-          <Button variant="primary" size="md" onClick={openCreate}>+ Yeni Kişi</Button>
+          <Button variant="primary" size="md" onClick={openCreate}>+ {t('addPerson')}</Button>
         </div>
       </div>
 
@@ -308,23 +310,23 @@ export default function Persons() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="İsim, email, görev veya kurum ara..."
+          placeholder={t('searchPerson')}
           className="input-base flex-1"
         />
-        <button type="submit" className="btn-primary">Ara</button>
+        <button type="submit" className="btn-primary">{t('searchBtn')}</button>
       </form>
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border animate-fade-in"
           style={{ background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.2)' }}>
-          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{selectedIds.size} kişi seçildi</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{selectedIds.size} {t('personsSelected')}</span>
           <div className="flex gap-2 ml-auto">
             <Button size="xs" variant="secondary" onClick={handleExport}>↓ Export</Button>
             {isAdmin && (
-              <Button size="xs" variant="danger" onClick={() => setConfirmBulkDelete(true)}>Sil</Button>
+              <Button size="xs" variant="danger" onClick={() => setConfirmBulkDelete(true)}>{t('delete')}</Button>
             )}
-            <Button size="xs" variant="ghost" onClick={() => setSelectedIds(new Set())}>İptal</Button>
+            <Button size="xs" variant="ghost" onClick={() => setSelectedIds(new Set())}>{t('cancel')}</Button>
           </div>
         </div>
       )}
@@ -333,15 +335,15 @@ export default function Persons() {
       {persons.length === 0 && !search && (
         <div className="empty-state">
           <div className="empty-icon"><EmptyPeopleIcon /></div>
-          <p className="font-semibold text-sm" style={{ color: 'var(--text-secondary)' }}>Henüz kişi eklenmedi</p>
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Yeni kişi eklemek için butona tıklayın</p>
+          <p className="font-semibold text-sm" style={{ color: 'var(--text-secondary)' }}>{t('noPersons')}</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{t('addPerson')}</p>
         </div>
       )}
       {persons.length === 0 && search && (
         <div className="empty-state">
           <div className="empty-icon"><SearchEmptyIcon /></div>
-          <p className="font-semibold text-sm" style={{ color: 'var(--text-secondary)' }}>Arama sonucu bulunamadı</p>
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>"{search}" için sonuç yok</p>
+          <p className="font-semibold text-sm" style={{ color: 'var(--text-secondary)' }}>{t('noPersonsFound')}</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>"{search}" {t('noResults')}</p>
         </div>
       )}
 
@@ -356,8 +358,8 @@ export default function Persons() {
               className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
             />
             <span className="text-xs select-none" style={{ color: 'var(--text-tertiary)' }}>
-              Bu sayfadakileri seç ({paginatedPersons.length})
-              {persons.length > PAGE_SIZE && ` · Toplam ${persons.length} kişi, sayfa ${page}/${totalPages}`}
+              {t('selectOnPage')} ({paginatedPersons.length})
+              {persons.length > PAGE_SIZE && ` · ${persons.length} ${t('personsRegistered')}, ${page}/${totalPages}`}
             </span>
           </div>
 
@@ -371,6 +373,7 @@ export default function Persons() {
                 onNavigate={handleNavigate}
                 onDelete={handleDeleteOpen}
                 isAdmin={isAdmin}
+                t={t}
               />
             ))}
           </div>
@@ -380,7 +383,7 @@ export default function Persons() {
             <div className="flex items-center justify-center gap-2 mt-6">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                 className="btn-secondary disabled:opacity-40" style={{ padding: '6px 14px', fontSize: '13px' }}>
-                ← Önceki
+                {t('prevPage')}
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(pg => (
                 <button key={pg} onClick={() => setPage(pg)}
@@ -393,7 +396,7 @@ export default function Persons() {
               ))}
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 className="btn-secondary disabled:opacity-40" style={{ padding: '6px 14px', fontSize: '13px' }}>
-                Sonraki →
+                {t('nextPage')}
               </button>
             </div>
           )}
@@ -403,9 +406,9 @@ export default function Persons() {
       {/* Single delete confirm */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Kişiyi Sil"
-        message={`"${confirmDelete?.firstName} ${confirmDelete?.lastName}" kişisi kalıcı olarak silinecek. Bu işlem geri alınamaz.`}
-        confirmLabel="Sil"
+        title={t('deletePerson')}
+        message={`"${confirmDelete?.firstName} ${confirmDelete?.lastName}" ${t('deletePerson').toLowerCase()}`}
+        confirmLabel={t('delete')}
         variant="danger"
         loading={deleting}
         onConfirm={() => handleDelete(confirmDelete.id)}
@@ -415,9 +418,9 @@ export default function Persons() {
       {/* Bulk delete confirm */}
       <ConfirmDialog
         open={confirmBulkDelete}
-        title="Toplu Silme"
-        message={`Seçilen ${selectedIds.size} kişi kalıcı olarak silinecek. Bu işlem geri alınamaz.`}
-        confirmLabel="Hepsini Sil"
+        title={t('bulkDelete')}
+        message={`${selectedIds.size} ${t('personsSelected')}`}
+        confirmLabel={t('deleteAll')}
         variant="danger"
         loading={bulkDeleting}
         onConfirm={handleBulkDelete}
@@ -426,18 +429,18 @@ export default function Persons() {
 
       {/* Create modal */}
       {showForm && (
-        <Modal title="Yeni Kişi" onClose={() => { setShowForm(false); setErrors({}); }}>
+        <Modal title={t('addPerson')} onClose={() => { setShowForm(false); setErrors({}); }}>
           <form onSubmit={handleSave} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Ad <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('firstName')} <span className="text-red-500">*</span></label>
                 <input value={form.firstName}
                   onChange={e => { setForm(f => ({ ...f, firstName: e.target.value })); setErrors(p => ({ ...p, firstName: undefined })); }}
                   className="input-base" style={errors.firstName ? { borderColor: '#EF4444' } : {}} />
                 {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Soyad <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('lastName')} <span className="text-red-500">*</span></label>
                 <input value={form.lastName}
                   onChange={e => { setForm(f => ({ ...f, lastName: e.target.value })); setErrors(p => ({ ...p, lastName: undefined })); }}
                   className="input-base" style={errors.lastName ? { borderColor: '#EF4444' } : {}} />
@@ -446,45 +449,45 @@ export default function Persons() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Görev / Unvan</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personPosition')}</label>
                 <input value={form.currentPosition} onChange={e => setForm(f => ({ ...f, currentPosition: e.target.value }))}
-                  placeholder="Müdür, Mühendis..." className="input-base" />
+                  placeholder={t('positionPlaceholder')} className="input-base" />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Kurum</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personOrganization')}</label>
                 <input value={form.organization} onChange={e => setForm(f => ({ ...f, organization: e.target.value }))}
-                  placeholder="Şirket adı..." className="input-base" />
+                  placeholder={t('orgPlaceholder')} className="input-base" />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('email')} <span className="text-red-500">*</span></label>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 required className="input-base" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Giriş Şifresi <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('loginPassword')} <span className="text-red-500">*</span></label>
               <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                required minLength={6} placeholder="En az 6 karakter" className="input-base" />
+                required minLength={6} placeholder={t('minChars')} className="input-base" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Telefon</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('phone')}</label>
               <PhoneInput value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} className="input-base" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Doğum Tarihi</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personBirthDate')}</label>
               <input type="date" value={form.birthDate} onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))}
                 className="input-base" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Adres</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personAddress')}</label>
               <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="input-base" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notlar</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('notes')}</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="input-base" />
             </div>
             <Button type="submit" loading={saving} className="w-full justify-center" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
-              Kaydet
+              {t('save')}
             </Button>
           </form>
         </Modal>

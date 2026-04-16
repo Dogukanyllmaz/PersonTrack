@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { ChatHubProvider } from './hooks/useChatHub';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
@@ -98,11 +99,13 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <ThemeProvider>
-          <ToastProvider>
-            <ChatHubProvider>
-              <AppRoutes />
-            </ChatHubProvider>
-          </ToastProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              <ChatHubProvider>
+                <AppRoutes />
+              </ChatHubProvider>
+            </ToastProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
     </AuthProvider>

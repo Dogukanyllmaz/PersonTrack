@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getTags, createTag, deleteTag, updateTag } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const PRESET_COLORS = [
   '#ef4444','#f97316','#eab308','#22c55e','#14b8a6',
@@ -9,6 +10,7 @@ const PRESET_COLORS = [
 
 export default function Tags() {
   const { isAdmin } = useAuth();
+  const { t } = useLanguage();
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,13 +85,13 @@ export default function Tags() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Etiket Yönetimi</h2>
-        <p className="text-gray-500 text-sm mt-1">Kişi ve toplantılara atanabilecek etiketleri yönetin.</p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('pageTags')}</h2>
+        <p className="text-gray-500 text-sm mt-1">{t('tagName')}</p>
       </div>
 
       {/* Create form */}
       <div className="bg-white rounded-xl shadow-sm border p-5 mb-6">
-        <h3 className="font-semibold text-gray-800 mb-4">Yeni Etiket Oluştur</h3>
+        <h3 className="font-semibold text-gray-800 mb-4">{t('editTag')}</h3>
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <div className="flex gap-3">
             <input
@@ -105,13 +107,13 @@ export default function Tags() {
               disabled={creating || !newName.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {creating ? '...' : 'Oluştur'}
+              {creating ? '...' : t('create')}
             </button>
           </div>
 
           {/* Color picker */}
           <div>
-            <p className="text-xs text-gray-500 mb-2">Renk seç:</p>
+            <p className="text-xs text-gray-500 mb-2">{t('tagColor')}:</p>
             <div className="flex gap-2 flex-wrap items-center">
               {PRESET_COLORS.map(c => (
                 <button
@@ -142,14 +144,14 @@ export default function Tags() {
       {/* Tags list */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">Mevcut Etiketler</h3>
-          <span className="text-sm text-gray-500">{tags.length} etiket</span>
+          <h3 className="font-semibold text-gray-800">{t('pageTags')}</h3>
+          <span className="text-sm text-gray-500">{tags.length} {t('pageTags').toLowerCase()}</span>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-400">Yükleniyor...</div>
+          <div className="p-8 text-center text-gray-400">{t('loading')}</div>
         ) : tags.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">Henüz etiket yok.</div>
+          <div className="p-8 text-center text-gray-400">{t('noTags')}</div>
         ) : (
           <ul className="divide-y divide-gray-100">
             {tags.map(tag => (
@@ -167,10 +169,10 @@ export default function Tags() {
                         autoFocus
                       />
                       <button onClick={() => handleUpdate(tag.id)} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-                        Kaydet
+                        {t('save')}
                       </button>
                       <button onClick={cancelEdit} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
-                        İptal
+                        {t('cancel')}
                       </button>
                     </div>
                     <div className="flex gap-2 flex-wrap items-center">
@@ -203,16 +205,16 @@ export default function Tags() {
                         onClick={() => startEdit(tag)}
                         className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
                       >
-                        Düzenle
+                        {t('edit')}
                       </button>
                       {isAdmin && (
                         deleteId === tag.id ? (
                           <div className="flex gap-1">
                             <button onClick={() => handleDelete(tag.id)} className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                              Sil
+                              {t('delete')}
                             </button>
                             <button onClick={() => setDeleteId(null)} className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">
-                              İptal
+                              {t('cancel')}
                             </button>
                           </div>
                         ) : (
@@ -220,7 +222,7 @@ export default function Tags() {
                             onClick={() => setDeleteId(tag.id)}
                             className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-600 hover:bg-red-50"
                           >
-                            Sil
+                            {t('delete')}
                           </button>
                         )
                       )}

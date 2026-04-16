@@ -7,6 +7,7 @@ import {
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { TasksSkeleton } from '../components/Skeleton';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -35,6 +36,7 @@ const TaskRow = memo(function TaskRow({
   t, isSelected, onSelect, onComments, onComplete, onEdit, onDelete,
   optimisticIds,
 }) {
+  const { t: tl } = useLanguage();
   const overdue    = isOverdue(t);
   const isPending  = optimisticIds?.has(t.id);
   const rowClass   = [
@@ -55,7 +57,7 @@ const TaskRow = memo(function TaskRow({
           {t.title}
           {overdue && (
             <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
-              ⚠ GECİKMİŞ
+              ⚠ {tl('taskOverdue').toUpperCase()}
             </span>
           )}
         </p>
@@ -85,10 +87,10 @@ const TaskRow = memo(function TaskRow({
             </svg>
           </button>
           {t.status !== 'Completed' && (
-            <Button size="xs" variant="success" onClick={() => onComplete(t.id)}>✓ Tamamla</Button>
+            <Button size="xs" variant="success" onClick={() => onComplete(t.id)}>✓ {tl('taskDone')}</Button>
           )}
-          <Button size="xs" variant="ghost" onClick={() => onEdit(t)}>Düzenle</Button>
-          <Button size="xs" variant="danger" onClick={() => onDelete(t.id, t.title)}>Sil</Button>
+          <Button size="xs" variant="ghost" onClick={() => onEdit(t)}>{tl('edit')}</Button>
+          <Button size="xs" variant="danger" onClick={() => onDelete(t.id, t.title)}>{tl('delete')}</Button>
         </div>
       </td>
     </tr>
@@ -100,6 +102,7 @@ const TaskRow = memo(function TaskRow({
 ═══════════════════════════════════════════════════════════════════ */
 export default function Tasks() {
   const { toast } = useToast();
+  const { t: tl } = useLanguage();
   const [searchParams] = useSearchParams();
   const personIdFilter = searchParams.get('personId');
 
@@ -352,7 +355,7 @@ export default function Tasks() {
     setSelectedIds(new Set());
     try {
       await Promise.all(ids.map(id => completeTask(id)));
-      toast.success(`${ids.length} görev tamamlandı.`);
+      toast.success(`${ids.length} ${tl('taskDone')}.`);
     } catch (err) {
       // Rollback on failure — full reload
       await load();
@@ -374,7 +377,7 @@ export default function Tasks() {
     setConfirmBulkDelete(false);
     try {
       await Promise.all(ids.map(id => deleteTask(id)));
-      toast.success(`${count} görev silindi.`);
+      toast.success(`${count} ${tl('deleteTask')}.`);
     } catch (err) {
       // Rollback on failure
       setTasks(prev => [...prev, ...snapshots].sort((a, b) => a.id - b.id));
@@ -393,27 +396,27 @@ export default function Tasks() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Görevler</h1>
+          <h1 className="page-title">{tl('pageTasks')}</h1>
           {filterPerson
-            ? <p className="page-subtitle">Filtre: <strong>{filterPerson.fullName}</strong></p>
-            : <p className="page-subtitle">{sortedTasks.length} görev</p>
+            ? <p className="page-subtitle">{tl('filter')}: <strong>{filterPerson.fullName}</strong></p>
+            : <p className="page-subtitle">{sortedTasks.length} {tl('pageTasks').toLowerCase()}</p>
           }
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <select value={priorityFilter} onChange={e => setPriorityAndStore(e.target.value)}
             className="input-base" style={{ width: 'auto', padding: '7px 12px' }}>
-            <option value="">Tüm Öncelikler</option>
-            <option value="Critical">Kritik</option>
-            <option value="High">Yüksek</option>
-            <option value="Medium">Orta</option>
-            <option value="Low">Düşük</option>
+            <option value="">{tl('all')} {tl('taskPriority')}</option>
+            <option value="Critical">{tl('priorityHigh')}</option>
+            <option value="High">{tl('priorityHigh')}</option>
+            <option value="Medium">{tl('priorityMedium')}</option>
+            <option value="Low">{tl('priorityLow')}</option>
           </select>
           <select value={statusFilter} onChange={e => setStatusAndStore(e.target.value)}
             className="input-base" style={{ width: 'auto', padding: '7px 12px' }}>
-            <option value="">Tüm Durumlar</option>
-            <option value="Active">Aktif</option>
-            <option value="Pending">Bekliyor</option>
-            <option value="Completed">Tamamlandı</option>
+            <option value="">{tl('all')} {tl('status')}</option>
+            <option value="Active">{tl('active')}</option>
+            <option value="Pending">{tl('taskPending')}</option>
+            <option value="Completed">{tl('taskDone')}</option>
           </select>
           <Button variant="secondary" size="sm" onClick={handleExport}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -425,7 +428,7 @@ export default function Tasks() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Yeni Görev
+            {tl('addTask')}
           </Button>
         </div>
       </div>
@@ -435,13 +438,13 @@ export default function Tasks() {
         <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border animate-fade-in"
           style={{ background: 'rgba(79,70,229,0.07)', borderColor: 'rgba(79,70,229,0.2)' }}>
           <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-            {selectedIds.size} görev seçildi
+            {selectedIds.size} {tl('pageTasks').toLowerCase()} {tl('personsSelected')}
           </span>
           <div className="flex gap-2 ml-auto">
-            <Button size="xs" variant="success" onClick={handleBulkComplete}>✓ Tamamla</Button>
+            <Button size="xs" variant="success" onClick={handleBulkComplete}>✓ {tl('taskDone')}</Button>
             <Button size="xs" variant="secondary" onClick={handleExport}>↓ Export</Button>
-            <Button size="xs" variant="danger" onClick={() => setConfirmBulkDelete(true)}>Sil</Button>
-            <Button size="xs" variant="ghost" onClick={() => setSelectedIds(new Set())}>İptal</Button>
+            <Button size="xs" variant="danger" onClick={() => setConfirmBulkDelete(true)}>{tl('delete')}</Button>
+            <Button size="xs" variant="ghost" onClick={() => setSelectedIds(new Set())}>{tl('cancel')}</Button>
           </div>
         </div>
       )}
@@ -451,9 +454,9 @@ export default function Tasks() {
         {tasks.length === 0 ? (
           <EmptyState
             preset={(statusFilter || priorityFilter) ? 'search' : 'tasks'}
-            body={(statusFilter || priorityFilter) ? 'Bu filtreye uygun görev bulunamadı.' : 'Yeni görev eklemek için butona tıklayın.'}
+            body={(statusFilter || priorityFilter) ? tl('noResults') : tl('addTask')}
             action={!(statusFilter || priorityFilter) && (
-              <Button variant="primary" size="sm" onClick={openCreate}>+ Yeni Görev</Button>
+              <Button variant="primary" size="sm" onClick={openCreate}>+ {tl('addTask')}</Button>
             )}
           />
         ) : (
@@ -466,11 +469,11 @@ export default function Tasks() {
                       className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                   </th>
                   {[
-                    { key: 'title',      label: 'Görev' },
-                    { key: 'personName', label: 'Kişi' },
-                    { key: 'priority',   label: 'Öncelik' },
-                    { key: 'dueDate',    label: 'Son Tarih' },
-                    { key: 'status',     label: 'Durum' },
+                    { key: 'title',      label: tl('taskTitle') },
+                    { key: 'personName', label: tl('name') },
+                    { key: 'priority',   label: tl('taskPriority') },
+                    { key: 'dueDate',    label: tl('taskDue') },
+                    { key: 'status',     label: tl('status') },
                   ].map(col => (
                     <th key={col.key} onClick={() => toggleSort(col.key)}
                       className="table-th text-left px-4 py-3 font-semibold cursor-pointer select-none text-xs uppercase tracking-wide"
@@ -503,11 +506,11 @@ export default function Tasks() {
 
       {/* Task form modal */}
       {showForm && (
-        <Modal title={editTask ? 'Görevi Düzenle' : 'Yeni Görev'} onClose={() => setShowForm(false)}>
+        <Modal title={editTask ? tl('editTask') : tl('addTask')} onClose={() => setShowForm(false)}>
           <form onSubmit={handleSave} className="space-y-4">
             {!editTask && (
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Kişi *</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>{tl('personName')} *</label>
                 <select value={form.personId} onChange={e => setForm(f => ({ ...f, personId: e.target.value }))} required
                   className="input-base">
                   <option value="">Seçin...</option>
@@ -518,31 +521,31 @@ export default function Tasks() {
             )}
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                Görev Başlığı <span className="text-red-500">*</span>
+                {tl('taskTitle')} <span className="text-red-500">*</span>
               </label>
               <input value={form.title}
                 onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setErrors(p => ({ ...p, title: undefined })); }}
-                className="input-base" style={errors.title ? { borderColor: '#EF4444' } : {}} placeholder="Görev başlığını girin" />
+                className="input-base" style={errors.title ? { borderColor: '#EF4444' } : {}} placeholder={tl('taskTitle')} />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>{tl('taskDesc')}</label>
               <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                rows={3} className="input-base" placeholder="İsteğe bağlı..." />
+                rows={3} className="input-base" placeholder={tl('note')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Öncelik</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>{tl('taskPriority')}</label>
                 <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
                   className="input-base">
-                  <option value="Low">Düşük</option>
-                  <option value="Medium">Orta</option>
-                  <option value="High">Yüksek</option>
-                  <option value="Critical">Kritik</option>
+                  <option value="Low">{tl('priorityLow')}</option>
+                  <option value="Medium">{tl('priorityMedium')}</option>
+                  <option value="High">{tl('priorityHigh')}</option>
+                  <option value="Critical">{tl('priorityHigh')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Atanma Tarihi *</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>{tl('meetingDate')} *</label>
                 <input type="date" value={form.assignedDate}
                   onChange={e => setForm(f => ({ ...f, assignedDate: e.target.value }))}
                   required className="input-base" />
@@ -550,7 +553,7 @@ export default function Tasks() {
             </div>
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                Son Tarih <span className="text-red-500">*</span>
+                {tl('taskDue')} <span className="text-red-500">*</span>
               </label>
               <input type="date" value={form.dueDate}
                 onChange={e => { setForm(f => ({ ...f, dueDate: e.target.value })); setErrors(p => ({ ...p, dueDate: undefined })); }}
@@ -558,7 +561,7 @@ export default function Tasks() {
               {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate}</p>}
             </div>
             <Button type="submit" loading={saveLoading} className="w-full justify-center" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
-              {editTask ? 'Değişiklikleri Kaydet' : 'Görev Oluştur'}
+              {editTask ? tl('save') : tl('addTask')}
             </Button>
           </form>
         </Modal>
@@ -567,20 +570,20 @@ export default function Tasks() {
       {/* Confirm dialogs */}
       <ConfirmDialog
         open={!!confirmDel}
-        title={confirmDel?.type === 'task' ? 'Görevi Sil' : 'Yorumu Sil'}
+        title={confirmDel?.type === 'task' ? tl('deleteTask') : tl('delete')}
         message={confirmDel?.type === 'task'
-          ? `"${confirmDel?.label}" görevi kalıcı olarak silinecek.`
-          : 'Bu yorum kalıcı olarak silinecek.'}
-        confirmLabel="Sil"
+          ? `"${confirmDel?.label}" ${tl('deleteTask').toLowerCase()}`
+          : tl('delete')}
+        confirmLabel={tl('delete')}
         variant="danger"
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDel(null)}
       />
       <ConfirmDialog
         open={confirmBulkDelete}
-        title="Toplu Silme"
-        message={`Seçilen ${selectedIds.size} görev kalıcı olarak silinecek.`}
-        confirmLabel="Hepsini Sil"
+        title={tl('bulkDelete')}
+        message={`${selectedIds.size} ${tl('pageTasks').toLowerCase()} ${tl('personsSelected')}`}
+        confirmLabel={tl('deleteAll')}
         variant="danger"
         loading={bulkDeleting}
         onConfirm={handleBulkDelete}
@@ -589,7 +592,7 @@ export default function Tasks() {
 
       {/* Comments modal */}
       {selectedTask && (
-        <Modal title={`Yorumlar — ${selectedTask.title}`} onClose={() => setSelectedTask(null)}>
+        <Modal title={`${tl('notes')} — ${selectedTask.title}`} onClose={() => setSelectedTask(null)}>
           <div className="space-y-4">
             <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
               {commentsLoading ? (
@@ -597,7 +600,7 @@ export default function Tasks() {
                   <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
                 </div>
               ) : comments.length === 0 ? (
-                <p className="text-sm text-center py-8" style={{ color: 'var(--text-tertiary)' }}>Henüz yorum yok</p>
+                <p className="text-sm text-center py-8" style={{ color: 'var(--text-tertiary)' }}>{tl('noData')}</p>
               ) : comments.map(c => (
                 <div key={c.id} className="group flex gap-3">
                   <div className="flex-1 rounded-xl px-3.5 py-3"
@@ -619,10 +622,10 @@ export default function Tasks() {
               <input
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
-                placeholder="Yorum yaz..."
+                placeholder={tl('typeMessage')}
                 className="input-base flex-1"
               />
-              <Button type="submit" loading={commentLoading} disabled={!commentText.trim()}>Gönder</Button>
+              <Button type="submit" loading={commentLoading} disabled={!commentText.trim()}>{tl('sendMessage')}</Button>
             </form>
           </div>
         </Modal>

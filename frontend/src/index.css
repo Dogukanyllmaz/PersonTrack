@@ -7,79 +7,79 @@
    DESIGN TOKENS — Premium CRM
 ═══════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Sidebar — always deep navy ───────────────────────────── */
-  --sidebar-bg:      #030C1A;
-  --sidebar-surface: #061526;
+  /* ── Sidebar — warm dark slate ────────────────────────────── */
+  --sidebar-bg:      #1C2130;
+  --sidebar-surface: #242B3D;
   --sidebar-border:  rgba(255,255,255,0.055);
-  --sidebar-text:    #566F8A;
+  --sidebar-text:    #7A8FA8;
 
-  /* ── Content — LIGHT ──────────────────────────────────────── */
-  --content-bg:  #EBF0FC;
-  --card-bg:     #FFFFFF;
-  --card-border: rgba(15,35,70,0.07);
+  /* ── Content — LIGHT (warm cream) ────────────────────────── */
+  --content-bg:  #F2EEE8;
+  --card-bg:     #FDFCFA;
+  --card-border: rgba(60,45,25,0.08);
 
-  /* ── Brand ────────────────────────────────────────────────── */
-  --accent:        #5260F7;
-  --accent-2:      #8A5CF6;
-  --accent-3:      #06B6D4;
-  --accent-glow:   rgba(82,96,247,0.32);
-  --accent-glow-2: rgba(138,92,246,0.22);
+  /* ── Brand (muted steel-blue) ─────────────────────────────── */
+  --accent:        #5B7FA6;
+  --accent-2:      #7B93B5;
+  --accent-3:      #6B9E8E;
+  --accent-glow:   rgba(91,127,166,0.24);
+  --accent-glow-2: rgba(123,147,181,0.16);
 
-  /* ── Named Gradients ──────────────────────────────────────── */
-  --grad-brand:  linear-gradient(135deg, #5260F7 0%, #8A5CF6 100%);
-  --grad-warm:   linear-gradient(135deg, #F59E0B 0%, #F43F5E 100%);
-  --grad-cool:   linear-gradient(135deg, #06B6D4 0%, #5260F7 100%);
-  --grad-green:  linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
-  --grad-fire:   linear-gradient(135deg, #FF7043 0%, #EF4444 100%);
-  --grad-gold:   linear-gradient(135deg, #F59E0B 0%, #EF4444 50%, #EC4899 100%);
+  /* ── Named Gradients (soft, desaturated) ─────────────────── */
+  --grad-brand:  linear-gradient(135deg, #5B7FA6 0%, #7B93B5 100%);
+  --grad-warm:   linear-gradient(135deg, #C4956A 0%, #B87B72 100%);
+  --grad-cool:   linear-gradient(135deg, #6B9E8E 0%, #5B7FA6 100%);
+  --grad-green:  linear-gradient(135deg, #7BA87B 0%, #6B9E8E 100%);
+  --grad-fire:   linear-gradient(135deg, #C4826A 0%, #B87070 100%);
+  --grad-gold:   linear-gradient(135deg, #C4956A 0%, #B87B72 50%, #A87B9E 100%);
 
   /* ── Text ─────────────────────────────────────────────────── */
-  --text-primary:   #0B1420;
-  --text-secondary: #445F7A;
-  --text-tertiary:  #8AABCA;
+  --text-primary:   #2C2825;
+  --text-secondary: #6B6055;
+  --text-tertiary:  #A89E90;
 
   /* ── Radius ───────────────────────────────────────────────── */
   --radius-card: 20px;
   --radius-btn:  12px;
 
-  /* ── Shadows ──────────────────────────────────────────────── */
-  --shadow-xs:      0 1px 3px rgba(15,40,80,0.06);
-  --shadow-card:    0 2px 12px rgba(15,40,80,0.07), 0 1px 3px rgba(15,40,80,0.04);
-  --shadow-hover:   0 20px 60px rgba(15,40,80,0.13), 0 4px 18px rgba(15,40,80,0.08);
-  --shadow-pop:     0 32px 80px rgba(15,40,80,0.18), 0 8px 24px rgba(15,40,80,0.10);
-  --shadow-glow:    0 8px 36px rgba(82,96,247,0.30), 0 2px 10px rgba(82,96,247,0.18);
-  --shadow-glow-sm: 0 4px 18px rgba(82,96,247,0.24);
-  --shadow-warm:    0 8px 32px rgba(245,158,11,0.28);
-  --shadow-cool:    0 8px 32px rgba(6,182,212,0.24);
-  --shadow-green:   0 8px 32px rgba(16,185,129,0.24);
+  /* ── Shadows (warm-toned, soft) ───────────────────────────── */
+  --shadow-xs:      0 1px 3px rgba(60,45,25,0.05);
+  --shadow-card:    0 2px 12px rgba(60,45,25,0.06), 0 1px 3px rgba(60,45,25,0.04);
+  --shadow-hover:   0 20px 60px rgba(60,45,25,0.10), 0 4px 18px rgba(60,45,25,0.07);
+  --shadow-pop:     0 32px 80px rgba(60,45,25,0.14), 0 8px 24px rgba(60,45,25,0.09);
+  --shadow-glow:    0 8px 36px rgba(91,127,166,0.22), 0 2px 10px rgba(91,127,166,0.14);
+  --shadow-glow-sm: 0 4px 18px rgba(91,127,166,0.18);
+  --shadow-warm:    0 8px 32px rgba(196,149,106,0.22);
+  --shadow-cool:    0 8px 32px rgba(107,158,142,0.20);
+  --shadow-green:   0 8px 32px rgba(123,168,123,0.20);
 
   /* ── Skeleton ─────────────────────────────────────────────── */
-  --skeleton-1: #DCE5F5;
-  --skeleton-2: #EBF1FC;
+  --skeleton-1: #E5DFD6;
+  --skeleton-2: #EDE9E2;
 }
 
 .dark {
-  --content-bg:  #060C18;
-  --card-bg:     #0B1624;
-  --card-border: rgba(255,255,255,0.072);
+  --content-bg:  #111418;
+  --card-bg:     #181D26;
+  --card-border: rgba(255,255,255,0.07);
 
-  --accent:        #6273FF;
-  --accent-2:      #9E6EFA;
-  --accent-glow:   rgba(98,115,255,0.28);
-  --accent-glow-2: rgba(158,110,250,0.20);
+  --accent:        #7B9EC4;
+  --accent-2:      #9BB5D0;
+  --accent-glow:   rgba(123,158,196,0.22);
+  --accent-glow-2: rgba(155,181,208,0.15);
 
-  --grad-brand:  linear-gradient(135deg, #6273FF 0%, #9E6EFA 100%);
+  --grad-brand:  linear-gradient(135deg, #7B9EC4 0%, #9BB5D0 100%);
 
-  --text-primary:   #E4EDF8;
-  --text-secondary: #6890B0;
-  --text-tertiary:  #304860;
+  --text-primary:   #DDD8D0;
+  --text-secondary: #8A8275;
+  --text-tertiary:  #504840;
 
-  --shadow-card:  0 2px 12px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.38);
-  --shadow-hover: 0 20px 60px rgba(0,0,0,0.72), 0 4px 18px rgba(0,0,0,0.52);
-  --shadow-glow:  0 8px 36px rgba(98,115,255,0.26), 0 2px 10px rgba(98,115,255,0.15);
+  --shadow-card:  0 2px 12px rgba(0,0,0,0.50), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-hover: 0 20px 60px rgba(0,0,0,0.65), 0 4px 18px rgba(0,0,0,0.48);
+  --shadow-glow:  0 8px 36px rgba(123,158,196,0.20), 0 2px 10px rgba(123,158,196,0.12);
 
-  --skeleton-1: #0B1624;
-  --skeleton-2: #122038;
+  --skeleton-1: #181D26;
+  --skeleton-2: #202736;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -104,12 +104,12 @@ body {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #C8D5E8, #B0BFCF);
+  background: linear-gradient(180deg, #C8BFB0, #B8AFA0);
   border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: #96ABBD; }
-.dark ::-webkit-scrollbar-thumb { background: #1A2F48; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #243D58; }
+::-webkit-scrollbar-thumb:hover { background: #A89E90; }
+.dark ::-webkit-scrollbar-thumb { background: #2A3040; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #353D52; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
@@ -122,8 +122,8 @@ body {
 ═══════════════════════════════════════════════════════════════ */
 .sidebar-texture {
   background-image:
-    radial-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
-    radial-gradient(rgba(82,96,247,0.06) 1px, transparent 1px);
+    radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+    radial-gradient(rgba(91,127,166,0.05) 1px, transparent 1px);
   background-size: 22px 22px, 44px 44px;
   background-position: 0 0, 11px 11px;
 }
@@ -395,21 +395,21 @@ body {
 ═══════════════════════════════════════════════════════════════ */
 .input-base {
   width: 100%;
-  border: 1.5px solid rgba(15,40,80,0.12);
+  border: 1.5px solid rgba(60,45,25,0.12);
   border-radius: 13px;
   padding: 9px 13px;
   font-size: 14px;
   font-family: inherit;
-  background: #FAFBFF;
+  background: #F8F5F0;
   color: var(--text-primary);
   transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 .input-base::placeholder { color: var(--text-tertiary); }
 .input-base:focus {
   outline: none;
-  background: #FFFFFF;
+  background: #FDFCFA;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3.5px rgba(82,96,247,0.16);
+  box-shadow: 0 0 0 3.5px rgba(91,127,166,0.14);
 }
 .dark .input-base {
   background: rgba(255,255,255,0.04);
@@ -419,7 +419,7 @@ body {
 .dark .input-base:focus {
   background: rgba(255,255,255,0.07);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3.5px rgba(98,115,255,0.18);
+  box-shadow: 0 0 0 3.5px rgba(123,158,196,0.16);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -491,11 +491,11 @@ body {
   box-shadow: var(--shadow-xs);
 }
 .btn-secondary:hover {
-  border-color: rgba(82,96,247,0.35);
-  background: rgba(82,96,247,0.04);
+  border-color: rgba(91,127,166,0.35);
+  background: rgba(91,127,166,0.05);
   color: var(--accent);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(82,96,247,0.12);
+  box-shadow: 0 4px 14px rgba(91,127,166,0.10);
 }
 .btn-secondary:active {
   transform: scale(0.97);
@@ -506,8 +506,8 @@ body {
   border-color: rgba(255,255,255,0.09);
 }
 .dark .btn-secondary:hover {
-  background: rgba(98,115,255,0.12);
-  border-color: rgba(98,115,255,0.40);
+  background: rgba(123,158,196,0.10);
+  border-color: rgba(123,158,196,0.35);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -547,18 +547,18 @@ body {
 }
 .person-card.is-selected {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(82,96,247,0.18), var(--shadow-card);
+  box-shadow: 0 0 0 3px rgba(91,127,166,0.16), var(--shadow-card);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    TASK TABLE ROW
 ═══════════════════════════════════════════════════════════════ */
 .task-row                  { transition: background 0.14s; }
-.task-row:hover            { background: rgba(82,96,247,0.04); }
-.dark .task-row:hover      { background: rgba(98,115,255,0.07); }
-.task-row.is-overdue       { background: rgba(239,68,68,0.04); }
-.task-row.is-overdue:hover { background: rgba(239,68,68,0.08); }
-.task-row.is-selected      { background: rgba(98,115,255,0.08) !important; }
+.task-row:hover            { background: rgba(91,127,166,0.05); }
+.dark .task-row:hover      { background: rgba(123,158,196,0.07); }
+.task-row.is-overdue       { background: rgba(184,112,112,0.05); }
+.task-row.is-overdue:hover { background: rgba(184,112,112,0.09); }
+.task-row.is-selected      { background: rgba(123,158,196,0.09) !important; }
 
 /* ═══════════════════════════════════════════════════════════════
    WIDGET / SECTION LABELS
@@ -613,13 +613,13 @@ body {
    DASHBOARD GREETING BANNER — Premium gradient
 ═══════════════════════════════════════════════════════════════ */
 .greeting-banner {
-  background: linear-gradient(135deg, #3B4FE8 0%, #6A35C9 45%, #9333EA 80%, #A855F7 100%);
+  background: linear-gradient(135deg, #3A5470 0%, #4A6885 45%, #5B7FA6 80%, #7B93B5 100%);
   border-radius: 24px;
   padding: 30px 36px;
   margin-bottom: 30px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(59,79,232,0.40), 0 2px 8px rgba(59,79,232,0.25);
+  box-shadow: 0 10px 40px rgba(58,84,112,0.28), 0 2px 8px rgba(58,84,112,0.16);
 }
 /* Noise texture */
 .greeting-banner::before {
@@ -673,7 +673,7 @@ body {
    NAV ITEM ACTIVE — Glow pill
 ═══════════════════════════════════════════════════════════════ */
 .nav-item-active {
-  background: linear-gradient(90deg, rgba(82,96,247,0.18) 0%, rgba(82,96,247,0.08) 100%) !important;
+  background: linear-gradient(90deg, rgba(91,127,166,0.20) 0%, rgba(91,127,166,0.08) 100%) !important;
   box-shadow: inset 3px 0 0 var(--accent);
   color: white !important;
 }
@@ -702,7 +702,7 @@ body {
   flex-shrink: 0;
 }
 .icon-btn:hover {
-  background: rgba(82,96,247,0.08);
+  background: rgba(91,127,166,0.09);
   color: var(--accent);
   transform: scale(1.08);
 }
@@ -711,7 +711,7 @@ body {
   transition-duration: 0.08s;
 }
 .dark .icon-btn:hover {
-  background: rgba(98,115,255,0.12);
+  background: rgba(123,158,196,0.12);
   color: var(--accent);
 }
 

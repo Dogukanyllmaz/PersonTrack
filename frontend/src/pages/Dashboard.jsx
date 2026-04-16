@@ -9,6 +9,7 @@ import {
   getNotifications, getReminders, getErrorMessage
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { DashboardSkeleton } from '../components/Skeleton';
 import Avatar from '../components/ui/Avatar';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
@@ -17,7 +18,7 @@ import { StatusBadge, PriorityBadge } from '../components/ui/Badge';
 const PRIORITY_LABELS = { Low: 'Düşük', Medium: 'Orta', High: 'Yüksek', Critical: 'Kritik' };
 const PRIORITY_COLORS = { Low: 'bg-slate-100 text-slate-600', Medium: 'bg-indigo-100 text-indigo-700', High: 'bg-orange-100 text-orange-700', Critical: 'bg-red-100 text-red-700' };
 const DEFAULT_ORDER   = ['charts', 'recentItems', 'activityItems'];
-const WIDGET_LABELS   = { charts: 'Analizler', recentItems: 'Son Aktivite', activityItems: 'Bildirimler & Hatırlatıcılar' };
+const WIDGET_LABEL_KEYS = { charts: 'analysisWidget', recentItems: 'recentActivity', activityItems: 'notifAndReminders' };
 /* Notification type SVG icons */
 const _NIcon = ({ d, extra, color }) => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,11 +57,11 @@ function buildMonthlyData(meetings) {
   return months;
 }
 
-function timeGreeting() {
+function timeGreeting(t) {
   const h = new Date().getHours();
-  if (h < 12) return 'Günaydın';
-  if (h < 18) return 'İyi günler';
-  return 'İyi akşamlar';
+  if (h < 12) return t('goodMorning') !== 'goodMorning' ? t('goodMorning') : 'Günaydın';
+  if (h < 18) return t('goodAfternoon') !== 'goodAfternoon' ? t('goodAfternoon') : 'İyi günler';
+  return t('goodEvening') !== 'goodEvening' ? t('goodEvening') : 'İyi akşamlar';
 }
 
 /* ── SVG Icons ──────────────────────────────────────────────────────── */
@@ -142,6 +143,7 @@ const MetricCard = memo(function MetricCard({ card, index }) {
 ═══════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const { user, canManage } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -230,11 +232,11 @@ export default function Dashboard() {
 
   /* ── Stat cards config ──────────────────────────────────────── */
   const cards = useMemo(() => [
-    ...(canManage ? [{ label:'Toplam Kişi',  value: stats.persons,    to:'/persons',                       desc:'Kişiler',   Icon: PersonsIcon, theme: CARD_THEMES.persons }] : []),
-    {               label:'Toplantılar',     value: stats.meetings,   to:'/meetings',                      desc:'Toplantılar', Icon: MeetingIcon, theme: CARD_THEMES.meetings },
-    {               label:'Aktif Görevler',  value: stats.activeTasks,to: canManage?'/tasks':'/timeline',  desc:'Görevler',  Icon: ActiveIcon,  theme: CARD_THEMES.active },
-    ...(canManage ? [{ label:'Toplam Görev', value: stats.tasks,      to:'/tasks',                         desc:'Görevler',  Icon: TasksIcon,   theme: CARD_THEMES.total }] : []),
-  ], [canManage, stats]);
+    ...(canManage ? [{ label: t('pagePersons'),   value: stats.persons,    to:'/persons',                       desc: t('pagePersons'),  Icon: PersonsIcon, theme: CARD_THEMES.persons }] : []),
+    {               label: t('pageMeetings'),     value: stats.meetings,   to:'/meetings',                      desc: t('pageMeetings'), Icon: MeetingIcon, theme: CARD_THEMES.meetings },
+    {               label: t('active') + ' ' + t('pageTasks'), value: stats.activeTasks, to: canManage?'/tasks':'/timeline', desc: t('pageTasks'), Icon: ActiveIcon,  theme: CARD_THEMES.active },
+    ...(canManage ? [{ label: t('pageTasks'),     value: stats.tasks,      to:'/tasks',                         desc: t('pageTasks'),    Icon: TasksIcon,   theme: CARD_THEMES.total }] : []),
+  ], [canManage, stats, t]);
 
   const todayBirthdays    = useMemo(() => birthdays.filter(b => b.isToday),  [birthdays]);
   const upcomingBirthdays = useMemo(() => birthdays.filter(b => !b.isToday), [birthdays]);
@@ -248,7 +250,7 @@ export default function Dashboard() {
         {/* Pie */}
         {taskStatusData.length > 0 && (
           <div className="card p-5">
-            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>Görev Durumu</p>
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>{t('taskStatus') !== 'taskStatus' ? t('taskStatus') : 'Görev Durumu'}</p>
             <ResponsiveContainer width="100%" height={170}>
               <PieChart>
                 <Pie data={taskStatusData} cx="50%" cy="50%" innerRadius={48} outerRadius={72} paddingAngle={4} dataKey="value" strokeWidth={0}>
@@ -270,7 +272,7 @@ export default function Dashboard() {
         {/* Bar — Priority */}
         {taskPriorityData.length > 0 && (
           <div className="card p-5">
-            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>Öncelik Dağılımı</p>
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>{t('priorityDistribution') !== 'priorityDistribution' ? t('priorityDistribution') : 'Öncelik Dağılımı'}</p>
             <ResponsiveContainer width="100%" height={170}>
               <BarChart data={taskPriorityData} margin={{ top: 0, right: 0, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--card-border)" />
@@ -286,7 +288,7 @@ export default function Dashboard() {
         )}
         {/* Area — Monthly meetings */}
         <div className="card p-5">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>Aylık Toplantılar</p>
+          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-tertiary)' }}>{t('monthlyMeetings') !== 'monthlyMeetings' ? t('monthlyMeetings') : 'Aylık Toplantılar'}</p>
           <ResponsiveContainer width="100%" height={170}>
             <AreaChart data={monthlyData} margin={{ top: 4, right: 0, left: -22, bottom: 0 }}>
               <defs>
@@ -312,15 +314,15 @@ export default function Dashboard() {
       {/* Recent Meetings */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Son Toplantılar</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{t('recentMeetings')}</p>
           <Link to="/meetings" className="flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
-            Tümü <ArrowIcon />
+            {t('all')} <ArrowIcon />
           </Link>
         </div>
         {recentMeetings.length === 0 ? (
           <div className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
             <MeetingIcon size={28} color="var(--text-tertiary)" />
-            <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>Toplantı yok</p>
+            <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noMeetingsYet')}</p>
           </div>
         ) : (
           <ul className="space-y-2.5">
@@ -344,32 +346,32 @@ export default function Dashboard() {
       {/* Active Tasks */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Aktif Görevler</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{t('activeTasks')}</p>
           {canManage && (
             <Link to="/tasks" className="flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
-              Tümü <ArrowIcon />
+              {t('all')} <ArrowIcon />
             </Link>
           )}
         </div>
         {pendingTasks.length === 0 ? (
           <div className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
             <TasksIcon size={28} color="var(--text-tertiary)" />
-            <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>Bekleyen görev yok</p>
+            <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noPendingTasks')}</p>
           </div>
         ) : (
           <ul className="space-y-2.5">
-            {pendingTasks.map(t => (
-              <li key={t.id} className="flex items-center gap-3 py-1.5 px-2 rounded-xl transition-colors"
+            {pendingTasks.map(task => (
+              <li key={task.id} className="flex items-center gap-3 py-1.5 px-2 rounded-xl transition-colors"
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--content-bg)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ border: '2px solid var(--card-border)' }}>
-                  <div className="w-2 h-2 rounded-sm" style={{ background: { Low:'#94A3B8', Medium:'#6366F1', High:'#F97316', Critical:'#EF4444' }[t.priority] || '#94A3B8' }} />
+                  <div className="w-2 h-2 rounded-sm" style={{ background: { Low:'#94A3B8', Medium:'#6366F1', High:'#F97316', Critical:'#EF4444' }[task.priority] || '#94A3B8' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{t.title}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t.personName}</p>
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{task.title}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{task.personName}</p>
                 </div>
-                <PriorityBadge priority={t.priority} />
+                <PriorityBadge priority={task.priority} />
               </li>
             ))}
           </ul>
@@ -383,9 +385,9 @@ export default function Dashboard() {
       {/* Notifications */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Okunmamış Bildirimler</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{t('unreadNotifications')}</p>
           <Link to="/notifications" className="flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
-            Tümü <ArrowIcon />
+            {t('all')} <ArrowIcon />
           </Link>
         </div>
         {recentNotifications.length === 0 ? (
@@ -393,7 +395,7 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: 'rgba(82,96,247,0.08)', color: 'var(--accent)' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
             </div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Okunmamış bildirim yok</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noUnreadNotif')}</p>
           </div>
         ) : (
           <ul className="space-y-1">
@@ -421,8 +423,8 @@ export default function Dashboard() {
       {canManage && upcomingBirthdays.length > 0 ? (
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Yaklaşan Doğum Günleri</p>
-            <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>30 gün içinde</span>
+            <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{t('upcomingBirthdays')}</p>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>30 {t('withinDays')}</span>
           </div>
           <ul className="space-y-3">
             {upcomingBirthdays.slice(0, 5).map(b => (
@@ -433,7 +435,7 @@ export default function Dashboard() {
                   <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{new Date(b.birthDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · {b.age} yaş</p>
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${b.daysUntil <= 3 ? 'bg-red-100 text-red-600' : b.daysUntil <= 7 ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                  {b.daysUntil === 1 ? 'Yarın' : `${b.daysUntil}g`}
+                  {b.daysUntil === 1 ? t('tomorrow') : `${b.daysUntil}d`}
                 </span>
               </li>
             ))}
@@ -442,15 +444,15 @@ export default function Dashboard() {
       ) : (
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Yaklaşan Hatırlatıcılar</p>
-            <Link to="/reminders" className="flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>Tümü <ArrowIcon /></Link>
+            <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{t('upcomingReminders')}</p>
+            <Link to="/reminders" className="flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>{t('all')} <ArrowIcon /></Link>
           </div>
           {upcomingReminders.length === 0 ? (
             <div className="text-center py-8">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: 'rgba(82,96,247,0.08)', color: 'var(--accent)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
               </div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Hatırlatıcı yok</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noReminders')}</p>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -463,7 +465,7 @@ export default function Dashboard() {
                   {r.isRecurring && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: 'rgba(82,96,247,0.10)', color: 'var(--accent)' }}>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                      Tekrar
+                      {t('repeat')}
                     </span>
                   )}
                 </li>
@@ -492,17 +494,17 @@ export default function Dashboard() {
             <span className="w-6 h-6 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
             </span>
-            <span className="text-xs font-semibold text-white">{todayBirthdays.map(b => b.fullName).join(', ')} — Bugün doğum günü!</span>
+            <span className="text-xs font-semibold text-white">{todayBirthdays.map(b => b.fullName).join(', ')} — {t('birthdayToday')}</span>
           </div>
         )}
         <p className="text-white/60 text-sm font-medium mb-1 relative z-10">{todayStr}</p>
         <h1 className="text-white font-black text-4xl relative z-10" style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-1px' }}>
-          {timeGreeting()}, <span style={{ opacity: 0.9 }}>{user?.username}</span>
+          {timeGreeting(t)}, <span style={{ opacity: 0.9 }}>{user?.username}</span>
         </h1>
         <p className="text-white/60 text-sm mt-2 relative z-10">
           {stats.activeTasks > 0
-            ? `${stats.activeTasks} aktif görev seni bekliyor.`
-            : 'Bugün harika bir gün!'}
+            ? `${stats.activeTasks} ${t('activeTasksWaiting')}`
+            : t('greatDay')}
         </p>
       </div>
 
@@ -526,7 +528,7 @@ export default function Dashboard() {
               className={`transition-all duration-150 ${dragging === widgetId ? 'opacity-50 scale-[0.99]' : ''} ${dragOver === widgetId && dragging !== widgetId ? 'ring-2 ring-indigo-400 ring-offset-2 rounded-2xl' : ''}`}>
               <div className="flex items-center gap-1.5 mb-2.5 select-none">
                 <DragHandle />
-                <span className="widget-label">{WIDGET_LABELS[widgetId]}</span>
+                <span className="widget-label">{t(WIDGET_LABEL_KEYS[widgetId])}</span>
               </div>
               {content}
             </div>
