@@ -30,9 +30,11 @@ public class PersonsController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] string? search)
     {
         var query = _db.Persons
+            .Include(p => p.Position)
             .Include(p => p.RelationshipsAsSource).ThenInclude(r => r.RelatedPerson)
             .Include(p => p.RelationshipsAsTarget).ThenInclude(r => r.Person)
             .Include(p => p.Documents).ThenInclude(d => d.UploadedBy)
+            .Include(p => p.Documents).ThenInclude(d => d.Category)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -43,7 +45,7 @@ public class PersonsController : ControllerBase
                 p.LastName.ToLower().Contains(search) ||
                 (p.Email != null && p.Email.ToLower().Contains(search)) ||
                 (p.Phone != null && p.Phone.Contains(search)) ||
-                (p.CurrentPosition != null && p.CurrentPosition.ToLower().Contains(search)) ||
+                (p.Position != null && p.Position.Name.ToLower().Contains(search)) ||
                 (p.Organization != null && p.Organization.ToLower().Contains(search)));
         }
 
@@ -55,9 +57,11 @@ public class PersonsController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var person = await _db.Persons
+            .Include(p => p.Position)
             .Include(p => p.RelationshipsAsSource).ThenInclude(r => r.RelatedPerson)
             .Include(p => p.RelationshipsAsTarget).ThenInclude(r => r.Person)
             .Include(p => p.Documents).ThenInclude(d => d.UploadedBy)
+            .Include(p => p.Documents).ThenInclude(d => d.Category)
             .Include(p => p.Tags).ThenInclude(pt => pt.Tag)
             .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -75,6 +79,9 @@ public class PersonsController : ControllerBase
                 return BadRequest(new { message = "Bu e-posta adresi zaten başka bir kullanıcıya ait." });
         }
 
+        if (req.PositionId.HasValue && !await _db.Positions.AnyAsync(p => p.Id == req.PositionId))
+            return BadRequest(new { message = "Pozisyon bulunamadı." });
+
         var person = new Person
         {
             FirstName = req.FirstName,
@@ -83,7 +90,9 @@ public class PersonsController : ControllerBase
             Phone = req.Phone,
             Address = req.Address,
             Notes = req.Notes,
-            CurrentPosition = req.CurrentPosition,
+            PositionId = req.PositionId,
+            PositionStartDate = req.PositionStartDate,
+            PositionEndDate = req.PositionEndDate,
             Organization = req.Organization,
             BirthDate = req.BirthDate,
             CreatedById = CurrentUserId
@@ -112,8 +121,11 @@ public class PersonsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] PersonUpdateRequest req)
     {
-        var person = await _db.Persons.FindAsync(id);
+        var person = await _db.Persons.Include(p => p.Position).FirstOrDefaultAsync(p => p.Id == id);
         if (person == null) return NotFound();
+
+        if (req.PositionId.HasValue && !await _db.Positions.AnyAsync(p => p.Id == req.PositionId))
+            return BadRequest(new { message = "Pozisyon bulunamadı." });
 
         person.FirstName = req.FirstName;
         person.LastName = req.LastName;
@@ -121,7 +133,9 @@ public class PersonsController : ControllerBase
         person.Phone = req.Phone;
         person.Address = req.Address;
         person.Notes = req.Notes;
-        person.CurrentPosition = req.CurrentPosition;
+        person.PositionId = req.PositionId;
+        person.PositionStartDate = req.PositionStartDate;
+        person.PositionEndDate = req.PositionEndDate;
         person.Organization = req.Organization;
         person.BirthDate = req.BirthDate;
         await _db.SaveChangesAsync();
@@ -162,11 +176,16 @@ public class PersonsController : ControllerBase
         var related = await _db.Persons.FindAsync(req.RelatedPersonId);
         if (person == null || related == null) return NotFound();
 
+        if (req.EndDate.HasValue && req.EndDate <= req.StartDate)
+            return BadRequest(new { message = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır." });
+
         var rel = new PersonRelationship
         {
             PersonId = id,
             RelatedPersonId = req.RelatedPersonId,
             RelationshipType = req.RelationshipType,
+            StartDate = req.StartDate,
+            EndDate = req.EndDate,
             Notes = req.Notes
         };
         _db.PersonRelationships.Add(rel);
@@ -178,6 +197,38 @@ public class PersonsController : ControllerBase
             RelatedPersonId = rel.RelatedPersonId,
             RelatedPersonName = $"{related.FirstName} {related.LastName}",
             RelationshipType = rel.RelationshipType,
+            StartDate = rel.StartDate,
+            EndDate = rel.EndDate,
+            Notes = rel.Notes,
+            IsReverse = false
+        });
+    }
+
+    [HttpPut("{id}/relationships/{relId}")]
+    public async Task<IActionResult> UpdateRelationship(int id, int relId, [FromBody] UpdateRelationshipRequest req)
+    {
+        var rel = await _db.PersonRelationships
+            .Include(r => r.RelatedPerson)
+            .FirstOrDefaultAsync(r => r.Id == relId && r.PersonId == id);
+        if (rel == null) return NotFound();
+
+        if (req.EndDate.HasValue && req.EndDate <= req.StartDate)
+            return BadRequest(new { message = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır." });
+
+        rel.RelationshipType = req.RelationshipType;
+        rel.StartDate = req.StartDate;
+        rel.EndDate = req.EndDate;
+        rel.Notes = req.Notes;
+        await _db.SaveChangesAsync();
+
+        return Ok(new RelationshipResponse
+        {
+            Id = rel.Id,
+            RelatedPersonId = rel.RelatedPersonId,
+            RelatedPersonName = $"{rel.RelatedPerson!.FirstName} {rel.RelatedPerson.LastName}",
+            RelationshipType = rel.RelationshipType,
+            StartDate = rel.StartDate,
+            EndDate = rel.EndDate,
             Notes = rel.Notes,
             IsReverse = false
         });
@@ -196,11 +247,14 @@ public class PersonsController : ControllerBase
 
     // ── Documents ──────────────────────────────────────────────────────
     [HttpPost("{id}/documents")]
-    public async Task<IActionResult> UploadDocument(int id, IFormFile file)
+    public async Task<IActionResult> UploadDocument(int id, IFormFile file, [FromQuery] int? categoryId)
     {
         if (!await _db.Persons.AnyAsync(p => p.Id == id)) return NotFound();
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Dosya boş." });
+
+        if (categoryId.HasValue && !await _db.DocumentCategories.AnyAsync(c => c.Id == categoryId))
+            return BadRequest(new { message = "Kategori bulunamadı." });
 
         var ext = Path.GetExtension(file.FileName);
         var stored = $"{Guid.NewGuid()}{ext}";
@@ -214,6 +268,7 @@ public class PersonsController : ControllerBase
         var doc = new PersonDocument
         {
             PersonId = id,
+            CategoryId = categoryId,
             FileName = file.FileName,
             StoredFileName = stored,
             ContentType = file.ContentType,
@@ -223,6 +278,8 @@ public class PersonsController : ControllerBase
         _db.PersonDocuments.Add(doc);
         await _db.SaveChangesAsync();
         await _db.Entry(doc).Reference(d => d.UploadedBy).LoadAsync();
+        if (categoryId.HasValue)
+            await _db.Entry(doc).Reference(d => d.Category).LoadAsync();
         return Ok(MapDocToResponse(doc));
     }
 
@@ -360,8 +417,7 @@ public class PersonsController : ControllerBase
                 Phone = row.ElementAtOrDefault(3),
                 Address = row.ElementAtOrDefault(4),
                 Notes = row.ElementAtOrDefault(5),
-                CurrentPosition = row.ElementAtOrDefault(6),
-                Organization = row.ElementAtOrDefault(7),
+                Organization = row.ElementAtOrDefault(6),
                 CreatedById = CurrentUserId
             });
             added++;
@@ -400,7 +456,10 @@ public class PersonsController : ControllerBase
         Phone = p.Phone,
         Address = p.Address,
         Notes = p.Notes,
-        CurrentPosition = p.CurrentPosition,
+        PositionId = p.PositionId,
+        PositionName = p.Position?.Name,
+        PositionStartDate = p.PositionStartDate,
+        PositionEndDate = p.PositionEndDate,
         Organization = p.Organization,
         PhotoUrl = string.IsNullOrEmpty(p.PhotoFileName) ? null : $"/api/persons/{p.Id}/photo",
         BirthDate = p.BirthDate,
@@ -414,6 +473,8 @@ public class PersonsController : ControllerBase
                 RelatedPersonId = r.RelatedPersonId,
                 RelatedPersonName = $"{r.RelatedPerson!.FirstName} {r.RelatedPerson.LastName}",
                 RelationshipType = r.RelationshipType,
+                StartDate = r.StartDate,
+                EndDate = r.EndDate,
                 Notes = r.Notes,
                 IsReverse = false
             })
@@ -425,6 +486,8 @@ public class PersonsController : ControllerBase
                     RelatedPersonId = r.PersonId,
                     RelatedPersonName = $"{r.Person!.FirstName} {r.Person.LastName}",
                     RelationshipType = r.RelationshipType + " (ters)",
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
                     Notes = r.Notes,
                     IsReverse = true
                 }))
@@ -445,6 +508,8 @@ public class PersonsController : ControllerBase
     private static PersonDocumentResponse MapDocToResponse(PersonDocument d) => new()
     {
         Id = d.Id,
+        CategoryId = d.CategoryId,
+        CategoryName = d.Category?.Name,
         FileName = d.FileName,
         ContentType = d.ContentType,
         FileSize = d.FileSize,

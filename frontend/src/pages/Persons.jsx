@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getPersons, createPerson, deletePerson,
-  importPersons, downloadPersonTemplate, exportPersons, getErrorMessage
+  importPersons, downloadPersonTemplate, exportPersons, getErrorMessage,
+  getPositions,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -17,7 +18,8 @@ import EmptyState from '../components/ui/EmptyState';
 
 const emptyForm = {
   firstName: '', lastName: '', email: '', phone: '',
-  address: '', notes: '', currentPosition: '', organization: '', password: '', birthDate: ''
+  address: '', notes: '', positionId: '', positionStartDate: '', positionEndDate: '',
+  organization: '', password: '', birthDate: ''
 };
 const PAGE_SIZE = 12;
 
@@ -113,9 +115,9 @@ const PersonCard = memo(function PersonCard({ p, isSelected, onSelect, onNavigat
         </div>
 
         <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--text-primary)' }}>{p.fullName}</h3>
-        {(p.currentPosition || p.organization) && (
+        {(p.positionName || p.organization) && (
           <p className="text-xs mt-1 truncate font-medium" style={{ color: 'var(--text-secondary)' }}>
-            {[p.currentPosition, p.organization].filter(Boolean).join(' · ')}
+            {[p.positionName, p.organization].filter(Boolean).join(' · ')}
           </p>
         )}
         <div className="mt-3 space-y-1.5">
@@ -169,6 +171,7 @@ export default function Persons() {
   const [page, setPage]                 = useState(1);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [positions, setPositions] = useState([]);
 
   /* ── Data load ──────────────────────────────────────────────────── */
   const load = useCallback(async (s = '') => {
@@ -183,6 +186,7 @@ export default function Persons() {
   }, []);
 
   useEffect(() => { load(''); }, [load]);
+  useEffect(() => { getPositions().then(r => setPositions(r.data)).catch(() => {}); }, []);
 
   /* ── Pagination ─────────────────────────────────────────────────── */
   const totalPages       = Math.ceil(persons.length / PAGE_SIZE);
@@ -219,7 +223,12 @@ export default function Persons() {
     if (Object.keys(newErrors).length) return;
     setSaving(true);
     try {
-      await createPerson({ ...form, birthDate: form.birthDate || null });
+      await createPerson({
+        ...form,
+        birthDate: form.birthDate || null,
+        positionStartDate: form.positionStartDate || null,
+        positionEndDate: form.positionEndDate || null,
+      });
       setShowForm(false);
       setErrors({});
       await load(search);
@@ -301,6 +310,7 @@ export default function Persons() {
             </>
           )}
           <Button variant="secondary" size="md" onClick={handleExport}>↓ Export</Button>
+          <Button variant="secondary" size="md" onClick={() => window.open('/persons/print', '_blank')}>📋 PDF</Button>
           <Button variant="primary" size="md" onClick={openCreate}>+ {t('addPerson')}</Button>
         </div>
       </div>
@@ -449,14 +459,32 @@ export default function Persons() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personPosition')}</label>
-                <input value={form.currentPosition} onChange={e => setForm(f => ({ ...f, currentPosition: e.target.value }))}
-                  placeholder={t('positionPlaceholder')} className="input-base" />
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Pozisyon</label>
+                <select value={form.positionId}
+                  onChange={e => setForm(f => ({ ...f, positionId: e.target.value ? parseInt(e.target.value) : '' }))}
+                  className="input-base">
+                  <option value="">Seçiniz...</option>
+                  {positions.map(pos => (
+                    <option key={pos.id} value={pos.id}>{pos.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('personOrganization')}</label>
                 <input value={form.organization} onChange={e => setForm(f => ({ ...f, organization: e.target.value }))}
                   placeholder={t('orgPlaceholder')} className="input-base" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Pozisyon Başlangıç Tarihi</label>
+                <input type="date" value={form.positionStartDate}
+                  onChange={e => setForm(f => ({ ...f, positionStartDate: e.target.value }))}
+                  className="input-base" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Pozisyon Bitiş Tarihi</label>
+                <input type="date" value={form.positionEndDate}
+                  onChange={e => setForm(f => ({ ...f, positionEndDate: e.target.value }))}
+                  className="input-base" />
               </div>
             </div>
             <div>

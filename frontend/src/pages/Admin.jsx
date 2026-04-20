@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, setUserRole, toggleUserActive, deleteUser, resetPassword } from '../services/api';
+import { getUsers, createUser, setUserRole, toggleUserActive, deleteUser, resetPassword, getPositions, createPosition, updatePosition, deletePosition, getDocumentCategories, createDocumentCategory, updateDocumentCategory, deleteDocumentCategory } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import Modal from '../components/Modal';
@@ -14,6 +14,18 @@ export default function Admin() {
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // positions
+  const [positions, setPositions] = useState([]);
+  const [posForm, setPosForm] = useState({ name: '', description: '' });
+  const [editingPos, setEditingPos] = useState(null);
+  const [posLoading, setPosLoading] = useState(false);
+
+  // document categories
+  const [docCats, setDocCats] = useState([]);
+  const [docCatForm, setDocCatForm] = useState({ name: '', description: '' });
+  const [editingDocCat, setEditingDocCat] = useState(null);
+  const [docCatLoading, setDocCatLoading] = useState(false);
+
   const toggleLang = (code) => {
     if (enabledLangs.includes(code)) {
       saveEnabledLangs(enabledLangs.filter(l => l !== code));
@@ -27,7 +39,17 @@ export default function Admin() {
     setUsers(res.data);
   };
 
-  useEffect(() => { load(); }, []);
+  const loadPositions = async () => {
+    const res = await getPositions();
+    setPositions(res.data);
+  };
+
+  const loadDocCats = async () => {
+    const res = await getDocumentCategories();
+    setDocCats(res.data);
+  };
+
+  useEffect(() => { load(); loadPositions(); loadDocCats(); }, []);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -69,6 +91,78 @@ export default function Admin() {
     setShowResetModal(null);
     setNewPassword('');
     alert('Şifre sıfırlandı.');
+  };
+
+  const handleAddPosition = async (e) => {
+    e.preventDefault();
+    if (!posForm.name.trim()) return;
+    setPosLoading(true);
+    try {
+      await createPosition(posForm);
+      setPosForm({ name: '', description: '' });
+      await loadPositions();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    } finally { setPosLoading(false); }
+  };
+
+  const handleUpdatePosition = async (e) => {
+    e.preventDefault();
+    if (!editingPos?.name.trim()) return;
+    setPosLoading(true);
+    try {
+      await updatePosition(editingPos.id, { name: editingPos.name, description: editingPos.description });
+      setEditingPos(null);
+      await loadPositions();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    } finally { setPosLoading(false); }
+  };
+
+  const handleDeletePosition = async (id) => {
+    if (!confirm('Bu pozisyonu silmek istediğinizden emin misiniz?')) return;
+    try {
+      await deletePosition(id);
+      await loadPositions();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    }
+  };
+
+  const handleAddDocCat = async (e) => {
+    e.preventDefault();
+    if (!docCatForm.name.trim()) return;
+    setDocCatLoading(true);
+    try {
+      await createDocumentCategory(docCatForm);
+      setDocCatForm({ name: '', description: '' });
+      await loadDocCats();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    } finally { setDocCatLoading(false); }
+  };
+
+  const handleUpdateDocCat = async (e) => {
+    e.preventDefault();
+    if (!editingDocCat?.name.trim()) return;
+    setDocCatLoading(true);
+    try {
+      await updateDocumentCategory(editingDocCat.id, { name: editingDocCat.name, description: editingDocCat.description });
+      setEditingDocCat(null);
+      await loadDocCats();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    } finally { setDocCatLoading(false); }
+  };
+
+  const handleDeleteDocCat = async (id) => {
+    if (!confirm('Bu kategoriyi silmek istediğinizden emin misiniz?')) return;
+    try {
+      await deleteDocumentCategory(id);
+      await loadDocCats();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hata oluştu.');
+    }
   };
 
   return (
@@ -153,6 +247,168 @@ export default function Admin() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pozisyon Altyapısı */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Pozisyon Altyapısı</h2>
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)' }}>
+          {/* Yeni pozisyon ekleme satırı */}
+          <form onSubmit={handleAddPosition} className="px-5 py-4 flex gap-3 items-end" style={{ borderBottom: '1px solid var(--card-border)' }}>
+            <div className="flex-1">
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Pozisyon Adı *</label>
+              <input value={posForm.name} onChange={e => setPosForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="örn. Genel Sekreter" required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
+              <input value={posForm.description} onChange={e => setPosForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="İsteğe bağlı açıklama"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            </div>
+            <button type="submit" disabled={posLoading || !posForm.name.trim()}
+              className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 shrink-0">
+              + Ekle
+            </button>
+          </form>
+
+          {/* Tablo */}
+          {positions.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              Henüz pozisyon eklenmemiş
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead style={{ background: 'var(--hover-bg)', borderBottom: '1px solid var(--card-border)' }}>
+                <tr>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Pozisyon Adı</th>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Açıklama</th>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Kullanım</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map(pos => (
+                  <tr key={pos.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
+                    {editingPos?.id === pos.id ? (
+                      <td colSpan={3} className="px-5 py-3">
+                        <form onSubmit={handleUpdatePosition} className="flex gap-3 items-center">
+                          <input value={editingPos.name} onChange={e => setEditingPos(p => ({ ...p, name: e.target.value }))}
+                            required className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                          <input value={editingPos.description || ''} onChange={e => setEditingPos(p => ({ ...p, description: e.target.value }))}
+                            placeholder="Açıklama" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                          <button type="submit" disabled={posLoading}
+                            className="px-3 py-1.5 text-xs bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">Kaydet</button>
+                          <button type="button" onClick={() => setEditingPos(null)}
+                            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
+                        </form>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-5 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{pos.name}</td>
+                        <td className="px-5 py-3" style={{ color: 'var(--text-secondary)' }}>{pos.description || '—'}</td>
+                        <td className="px-5 py-3" style={{ color: 'var(--text-tertiary)' }}>
+                          {pos.personCount != null ? `${pos.personCount} kişi` : '—'}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-5 py-3 text-right">
+                      {editingPos?.id !== pos.id && (
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => setEditingPos({ id: pos.id, name: pos.name, description: pos.description || '' })}
+                            className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Düzenle</button>
+                          <button onClick={() => handleDeletePosition(pos.id)}
+                            className="text-xs font-medium text-red-500 hover:text-red-700">Sil</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Evrak Kategori Altyapısı */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Evrak Kategori Altyapısı</h2>
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)' }}>
+          <form onSubmit={handleAddDocCat} className="px-5 py-4 flex gap-3 items-end" style={{ borderBottom: '1px solid var(--card-border)' }}>
+            <div className="flex-1">
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Kategori Adı *</label>
+              <input value={docCatForm.name} onChange={e => setDocCatForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="örn. Kimlik Belgeleri" required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
+              <input value={docCatForm.description} onChange={e => setDocCatForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="İsteğe bağlı açıklama"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            </div>
+            <button type="submit" disabled={docCatLoading || !docCatForm.name.trim()}
+              className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 shrink-0">
+              + Ekle
+            </button>
+          </form>
+
+          {docCats.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              Henüz kategori eklenmemiş
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead style={{ background: 'var(--hover-bg)', borderBottom: '1px solid var(--card-border)' }}>
+                <tr>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Kategori Adı</th>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Açıklama</th>
+                  <th className="text-left px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Evrak Sayısı</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {docCats.map(cat => (
+                  <tr key={cat.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
+                    {editingDocCat?.id === cat.id ? (
+                      <td colSpan={3} className="px-5 py-3">
+                        <form onSubmit={handleUpdateDocCat} className="flex gap-3 items-center">
+                          <input value={editingDocCat.name} onChange={e => setEditingDocCat(p => ({ ...p, name: e.target.value }))}
+                            required className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                          <input value={editingDocCat.description || ''} onChange={e => setEditingDocCat(p => ({ ...p, description: e.target.value }))}
+                            placeholder="Açıklama" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                          <button type="submit" disabled={docCatLoading}
+                            className="px-3 py-1.5 text-xs bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">Kaydet</button>
+                          <button type="button" onClick={() => setEditingDocCat(null)}
+                            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
+                        </form>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-5 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{cat.name}</td>
+                        <td className="px-5 py-3" style={{ color: 'var(--text-secondary)' }}>{cat.description || '—'}</td>
+                        <td className="px-5 py-3" style={{ color: 'var(--text-tertiary)' }}>
+                          {cat.documentCount != null ? `${cat.documentCount} evrak` : '—'}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-5 py-3 text-right">
+                      {editingDocCat?.id !== cat.id && (
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => setEditingDocCat({ id: cat.id, name: cat.name, description: cat.description || '' })}
+                            className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Düzenle</button>
+                          <button onClick={() => handleDeleteDocCat(cat.id)}
+                            className="text-xs font-medium text-red-500 hover:text-red-700">Sil</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* Language Settings */}

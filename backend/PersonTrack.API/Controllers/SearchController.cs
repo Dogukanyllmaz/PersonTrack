@@ -31,14 +31,15 @@ public class SearchController : ControllerBase
         {
             // Persons
             var persons = await _db.Persons
+                .Include(p => p.Position)
                 .Where(p => p.FirstName.ToLower().Contains(lower)
                     || p.LastName.ToLower().Contains(lower)
                     || (p.Email != null && p.Email.ToLower().Contains(lower))
-                    || (p.CurrentPosition != null && p.CurrentPosition.ToLower().Contains(lower))
+                    || (p.Position != null && p.Position.Name.ToLower().Contains(lower))
                     || (p.Organization != null && p.Organization.ToLower().Contains(lower)))
                 .Take(5)
                 .Select(p => new { type = "person", p.Id, title = p.FirstName + " " + p.LastName,
-                    subtitle = p.CurrentPosition ?? p.Organization ?? p.Email ?? "",
+                    subtitle = p.Position.Name ?? p.Organization ?? p.Email ?? "",
                     link = "/persons/" + p.Id,
                     PhotoUrl = p.PhotoFileName != null ? "/api/persons/" + p.Id + "/photo" : null })
                 .ToListAsync();

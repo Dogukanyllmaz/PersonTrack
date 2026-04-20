@@ -9,7 +9,10 @@ public class Person
     public string? Phone { get; set; }
     public string? Address { get; set; }
     public string? Notes { get; set; }
-    public string? CurrentPosition { get; set; }
+    public int? PositionId { get; set; }
+    public Position? Position { get; set; }
+    public DateTime? PositionStartDate { get; set; }
+    public DateTime? PositionEndDate { get; set; }
     public string? Organization { get; set; }
     public string? PhotoFileName { get; set; }
     public DateTime? BirthDate { get; set; }

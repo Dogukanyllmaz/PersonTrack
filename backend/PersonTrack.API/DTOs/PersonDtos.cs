@@ -20,8 +20,9 @@ public record PersonCreateRequest(
     string? Address,
     string? Notes,
 
-    [StringLength(200, ErrorMessage = "Pozisyon en fazla 200 karakter olabilir.")]
-    string? CurrentPosition,
+    int? PositionId,
+    DateTime? PositionStartDate,
+    DateTime? PositionEndDate,
 
     [StringLength(200, ErrorMessage = "Organizasyon en fazla 200 karakter olabilir.")]
     string? Organization,
@@ -48,8 +49,9 @@ public record PersonUpdateRequest(
     string? Address,
     string? Notes,
 
-    [StringLength(200)]
-    string? CurrentPosition,
+    int? PositionId,
+    DateTime? PositionStartDate,
+    DateTime? PositionEndDate,
 
     [StringLength(200)]
     string? Organization,
@@ -67,7 +69,10 @@ public class PersonResponse
     public string? Phone { get; set; }
     public string? Address { get; set; }
     public string? Notes { get; set; }
-    public string? CurrentPosition { get; set; }
+    public int? PositionId { get; set; }
+    public string? PositionName { get; set; }
+    public DateTime? PositionStartDate { get; set; }
+    public DateTime? PositionEndDate { get; set; }
     public string? Organization { get; set; }
     public string? PhotoUrl { get; set; }
     public DateTime? BirthDate { get; set; }
@@ -85,12 +90,23 @@ public class RelationshipResponse
     public string RelatedPersonName { get; set; } = string.Empty;
     public string RelationshipType { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
     public bool IsReverse { get; set; }
 }
 
 public record AddRelationshipRequest(
     int RelatedPersonId,
     [Required(ErrorMessage = "İlişki türü zorunludur.")] string RelationshipType,
+    [Required(ErrorMessage = "Başlangıç tarihi zorunludur.")] DateTime StartDate,
+    DateTime? EndDate,
+    string? Notes
+);
+
+public record UpdateRelationshipRequest(
+    [Required(ErrorMessage = "İlişki türü zorunludur.")] string RelationshipType,
+    [Required(ErrorMessage = "Başlangıç tarihi zorunludur.")] DateTime StartDate,
+    DateTime? EndDate,
     string? Notes
 );
 
@@ -110,6 +126,8 @@ public class TagInfoResponse
 public class PersonDocumentResponse
 {
     public int Id { get; set; }
+    public int? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long FileSize { get; set; }

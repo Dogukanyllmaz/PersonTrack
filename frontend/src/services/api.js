@@ -95,6 +95,7 @@ export const createPerson = (data) => api.post('/persons', data);
 export const updatePerson = (id, data) => api.put(`/persons/${id}`, data);
 export const deletePerson = (id) => api.delete(`/persons/${id}`);
 export const addRelationship = (id, data) => api.post(`/persons/${id}/relationships`, data);
+export const updateRelationship = (id, relId, data) => api.put(`/persons/${id}/relationships/${relId}`, data);
 export const removeRelationship = (id, relId) => api.delete(`/persons/${id}/relationships/${relId}`);
 export const importPersons = (file) => {
   const form = new FormData();
@@ -142,15 +143,28 @@ export const deletePersonPhoto = (personId) => api.delete(`/persons/${personId}/
 export const getPersonPhotoUrl = (personId) => `${BASE_URL}/persons/${personId}/photo`;
 
 // Person documents
-export const uploadPersonDocument = (personId, file) => {
+export const uploadPersonDocument = (personId, file, categoryId) => {
   const form = new FormData();
   form.append('file', file);
-  return api.post(`/persons/${personId}/documents`, form);
+  const url = categoryId ? `/persons/${personId}/documents?categoryId=${categoryId}` : `/persons/${personId}/documents`;
+  return api.post(url, form);
 };
 export const downloadPersonDocument = (personId, docId) =>
   api.get(`/persons/${personId}/documents/${docId}/download`, { responseType: 'blob' });
 export const deletePersonDocument = (personId, docId) =>
   api.delete(`/persons/${personId}/documents/${docId}`);
+
+// Document categories
+export const getDocumentCategories = () => api.get('/documentcategories');
+export const createDocumentCategory = (data) => api.post('/documentcategories', data);
+export const updateDocumentCategory = (id, data) => api.put(`/documentcategories/${id}`, data);
+export const deleteDocumentCategory = (id) => api.delete(`/documentcategories/${id}`);
+
+// Positions
+export const getPositions = () => api.get('/positions');
+export const createPosition = (data) => api.post('/positions', data);
+export const updatePosition = (id, data) => api.put(`/positions/${id}`, data);
+export const deletePosition = (id) => api.delete(`/positions/${id}`);
 
 // Meeting documents
 export const uploadMeetingDocument = (meetingId, file) => {

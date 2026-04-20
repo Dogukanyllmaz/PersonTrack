@@ -9,8 +9,10 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Person> Persons => Set<Person>();
+    public DbSet<Position> Positions => Set<Position>();
     public DbSet<PersonRelationship> PersonRelationships => Set<PersonRelationship>();
     public DbSet<PersonDocument> PersonDocuments => Set<PersonDocument>();
+    public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingParticipant> MeetingParticipants => Set<MeetingParticipant>();
     public DbSet<MeetingNote> MeetingNotes => Set<MeetingNote>();
@@ -47,6 +49,21 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(p => p.CreatedById)
              .OnDelete(DeleteBehavior.NoAction);
+
+            e.HasOne(p => p.Position)
+             .WithMany(pos => pos.Persons)
+             .HasForeignKey(p => p.PositionId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+        });
+
+        modelBuilder.Entity<Position>(e =>
+        {
+            e.HasOne(pos => pos.CreatedBy)
+             .WithMany()
+             .HasForeignKey(pos => pos.CreatedById)
+             .OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(pos => pos.Name).IsUnique();
         });
 
         modelBuilder.Entity<PersonRelationship>(e =>
@@ -69,10 +86,25 @@ public class AppDbContext : DbContext
              .HasForeignKey(d => d.PersonId)
              .OnDelete(DeleteBehavior.Cascade);
 
+            e.HasOne(d => d.Category)
+             .WithMany(c => c.PersonDocuments)
+             .HasForeignKey(d => d.CategoryId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+
             e.HasOne(d => d.UploadedBy)
              .WithMany()
              .HasForeignKey(d => d.UploadedById)
              .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<DocumentCategory>(e =>
+        {
+            e.HasOne(dc => dc.CreatedBy)
+             .WithMany()
+             .HasForeignKey(dc => dc.CreatedById)
+             .OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(dc => dc.Name).IsUnique();
         });
 
         modelBuilder.Entity<Meeting>(e =>

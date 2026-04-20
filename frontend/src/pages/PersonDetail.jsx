@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  getPerson, updatePerson, addRelationship, removeRelationship, getPersons,
+  getPerson, updatePerson, addRelationship, updateRelationship, removeRelationship, getPersons,
   uploadPersonDocument, downloadPersonDocument, deletePersonDocument,
   uploadPersonPhoto, deletePersonPhoto,
   getTasks, createTask, completeTask, deleteTask,
   getPersonAccount, createAccountForPerson, setUserRole, toggleUserActive,
   adminResetPassword, generateOtp,
   getTags, addTagToPerson, removeTagFromPerson,
+  getDocumentCategories, getPositions,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import PhoneInput from '../components/PhoneInput';
@@ -58,8 +59,11 @@ export default function PersonDetail() {
   // relations
   const [allPersons, setAllPersons] = useState([]);
   const [showRelForm, setShowRelForm] = useState(false);
-  const [relForm, setRelForm] = useState({ relatedPersonId: '', relationshipType: 'Kuzen', notes: '' });
+  const [relForm, setRelForm] = useState({ relatedPersonId: '', relationshipType: 'Kuzen', startDate: '', endDate: '', notes: '' });
   const [addingRel, setAddingRel] = useState(false);
+  const [editingRelId, setEditingRelId] = useState(null);
+  const [editRelForm, setEditRelForm] = useState({ relationshipType: '', startDate: '', endDate: '', notes: '' });
+  const [savingRel, setSavingRel] = useState(false);
 
   // photo
   const photoRef = useRef();
@@ -68,6 +72,8 @@ export default function PersonDetail() {
   // documents
   const fileRef = useRef();
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docCategories, setDocCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   // tasks
   const [tasks, setTasks] = useState([]);
@@ -79,6 +85,9 @@ export default function PersonDetail() {
   const [allTags, setAllTags] = useState([]);
   const [personTags, setPersonTags] = useState([]);
   const [tagAdding, setTagAdding] = useState(false);
+
+  // positions
+  const [positions, setPositions] = useState([]);
 
   // account (admin only)
   const [account, setAccount] = useState(null);
@@ -96,6 +105,8 @@ export default function PersonDetail() {
     getPersons().then(r => setAllPersons(r.data.filter(p => p.id !== parseInt(id))));
     if (isAdmin) loadAccount();
     getTags().then(r => setAllTags(r.data));
+    getDocumentCategories().then(r => setDocCategories(r.data)).catch(() => setDocCategories([]));
+    getPositions().then(r => setPositions(r.data)).catch(() => setPositions([]));
   }, [id]);
 
   async function loadPersonTags() {
@@ -121,7 +132,9 @@ export default function PersonDetail() {
         firstName: d.firstName, lastName: d.lastName,
         email: d.email || '', phone: d.phone || '',
         address: d.address || '', notes: d.notes || '',
-        currentPosition: d.currentPosition || '', organization: d.organization || '',
+        positionId: d.positionId || '', organization: d.organization || '',
+        positionStartDate: d.positionStartDate ? d.positionStartDate.split('T')[0] : '',
+        positionEndDate: d.positionEndDate ? d.positionEndDate.split('T')[0] : '',
         birthDate: d.birthDate ? d.birthDate.split('T')[0] : '',
       });
     } catch { navigate('/persons'); }
@@ -141,28 +154,71 @@ export default function PersonDetail() {
   async function handleSave() {
     setSaving(true);
     try {
-      const payload = { ...editForm, birthDate: editForm.birthDate || null };
+      const payload = {
+        ...editForm,
+        birthDate: editForm.birthDate || null,
+        positionStartDate: editForm.positionStartDate || null,
+        positionEndDate: editForm.positionEndDate || null,
+      };
       await updatePerson(id, payload);
       await loadPerson();
       setEditing(false);
-    } catch {}
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || 'Kayıt sırasında bir hata oluştu.');
+    }
     finally { setSaving(false); }
   }
 
   async function handleAddRel() {
-    if (!relForm.relatedPersonId) return;
+    if (!relForm.relatedPersonId || !relForm.startDate) return;
+    if (relForm.endDate && new Date(relForm.endDate) <= new Date(relForm.startDate)) {
+      alert('Bitiş tarihi başlangıç tarihinden sonra olmalıdır.');
+      return;
+    }
     setAddingRel(true);
     try {
       await addRelationship(id, {
         relatedPersonId: parseInt(relForm.relatedPersonId),
         relationshipType: relForm.relationshipType,
+        startDate: new Date(relForm.startDate).toISOString(),
+        endDate: relForm.endDate ? new Date(relForm.endDate).toISOString() : null,
         notes: relForm.notes || null,
       });
       await loadPerson();
-      setRelForm({ relatedPersonId: '', relationshipType: 'Kuzen', notes: '' });
+      setRelForm({ relatedPersonId: '', relationshipType: 'Kuzen', startDate: '', endDate: '', notes: '' });
       setShowRelForm(false);
     } catch {}
     finally { setAddingRel(false); }
+  }
+
+  function handleStartEditRel(rel) {
+    setEditingRelId(rel.id);
+    setEditRelForm({
+      relationshipType: rel.relationshipType,
+      startDate: rel.startDate ? rel.startDate.substring(0, 10) : '',
+      endDate: rel.endDate ? rel.endDate.substring(0, 10) : '',
+      notes: rel.notes || '',
+    });
+  }
+
+  async function handleSaveRel(relId) {
+    if (!editRelForm.startDate) return;
+    if (editRelForm.endDate && new Date(editRelForm.endDate) <= new Date(editRelForm.startDate)) {
+      alert('Bitiş tarihi başlangıç tarihinden sonra olmalıdır.');
+      return;
+    }
+    setSavingRel(true);
+    try {
+      await updateRelationship(id, relId, {
+        relationshipType: editRelForm.relationshipType,
+        startDate: new Date(editRelForm.startDate).toISOString(),
+        endDate: editRelForm.endDate ? new Date(editRelForm.endDate).toISOString() : null,
+        notes: editRelForm.notes || null,
+      });
+      await loadPerson();
+      setEditingRelId(null);
+    } catch {}
+    finally { setSavingRel(false); }
   }
 
   async function handleRemoveRel(relId) {
@@ -184,11 +240,19 @@ export default function PersonDetail() {
   }
 
   async function handleUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setUploadingDoc(true);
-    try { await uploadPersonDocument(id, file); await loadPerson(); } catch {}
-    finally { setUploadingDoc(false); fileRef.current.value = ''; }
+    try {
+      for (let i = 0; i < files.length; i++) {
+        await uploadPersonDocument(id, files[i], selectedCategory || undefined);
+      }
+      await loadPerson();
+      setSelectedCategory('');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Dosya yükleme hatası.');
+    }
+    finally { setUploadingDoc(false); if (fileRef.current) fileRef.current.value = ''; }
   }
 
   async function handleDownload(doc) {
@@ -347,10 +411,10 @@ export default function PersonDetail() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{person.firstName} {person.lastName}</h1>
-                {(person.currentPosition || person.organization) && (
+                {(person.positionName || person.organization) && (
                   <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    {person.currentPosition}
-                    {person.currentPosition && person.organization ? ' — ' : ''}
+                    {person.positionName}
+                    {person.positionName && person.organization ? ' — ' : ''}
                     {person.organization}
                   </p>
                 )}
@@ -420,7 +484,6 @@ export default function PersonDetail() {
                 { label: 'Ad', key: 'firstName' },
                 { label: 'Soyad', key: 'lastName' },
                 { label: 'Email', key: 'email' },
-                { label: 'Görev / Unvan', key: 'currentPosition' },
                 { label: 'Kurum / Şirket', key: 'organization' },
               ].map(f => (
                 <div key={f.key}>
@@ -430,6 +493,29 @@ export default function PersonDetail() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
                 </div>
               ))}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Pozisyon</label>
+                <select value={editForm.positionId || ''}
+                  onChange={e => setEditForm(p => ({ ...p, positionId: e.target.value ? parseInt(e.target.value) : '' }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                  <option value="">Seçiniz...</option>
+                  {positions.map(pos => (
+                    <option key={pos.id} value={pos.id}>{pos.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Pozisyon Başlangıç Tarihi</label>
+                <input type="date" value={editForm.positionStartDate || ''}
+                  onChange={e => setEditForm(p => ({ ...p, positionStartDate: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Pozisyon Bitiş Tarihi</label>
+                <input type="date" value={editForm.positionEndDate || ''}
+                  onChange={e => setEditForm(p => ({ ...p, positionEndDate: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Telefon</label>
                 <PhoneInput
@@ -463,7 +549,11 @@ export default function PersonDetail() {
               {[
                 { label: 'Email', value: person.email },
                 { label: 'Telefon', value: person.phone },
-                { label: 'Görev / Unvan', value: person.currentPosition },
+                { label: 'Pozisyon', value: person.positionName
+                    ? person.positionName + (person.positionStartDate
+                        ? ` · ${new Date(person.positionStartDate).toLocaleDateString('tr-TR')} – ${person.positionEndDate ? new Date(person.positionEndDate).toLocaleDateString('tr-TR') : 'Devam ediyor'}`
+                        : '')
+                    : null },
                 { label: 'Kurum / Şirket', value: person.organization },
                 { label: 'Doğum Tarihi', value: person.birthDate
                     ? `${new Date(person.birthDate).toLocaleDateString('tr-TR')}${person.age ? ` · ${person.age} yaşında` : ''}`
@@ -503,7 +593,7 @@ export default function PersonDetail() {
               <p className="text-xs text-gray-500">
                 İlişki yönü: <strong>{person.firstName}</strong> → seçilen kişi için geçerlidir.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Kişi</label>
                   <select value={relForm.relatedPersonId}
@@ -526,6 +616,18 @@ export default function PersonDetail() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Başlangıç Tarihi *</label>
+                  <input type="date" value={relForm.startDate}
+                    onChange={e => setRelForm(p => ({ ...p, startDate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Bitiş Tarihi (opsiyonel)</label>
+                  <input type="date" value={relForm.endDate}
+                    onChange={e => setRelForm(p => ({ ...p, endDate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                </div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-gray-500 mb-1">Not (opsiyonel)</label>
                   <input value={relForm.notes}
                     onChange={e => setRelForm(p => ({ ...p, notes: e.target.value }))}
@@ -536,7 +638,7 @@ export default function PersonDetail() {
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowRelForm(false)}
                   className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
-                <button onClick={handleAddRel} disabled={addingRel || !relForm.relatedPersonId}
+                <button onClick={handleAddRel} disabled={addingRel || !relForm.relatedPersonId || !relForm.startDate}
                   className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
                   {addingRel ? 'Ekleniyor...' : 'Ekle'}
                 </button>
@@ -553,27 +655,82 @@ export default function PersonDetail() {
           ) : (
             <div className="card overflow-hidden">
               {person.relationships.map(rel => (
-                <div key={rel.id} className="flex items-center justify-between px-5 py-4"
+                <div key={rel.id} className="px-5 py-4"
                   style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      rel.isReverse ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                    }`}>
-                      {rel.relationshipType}
-                    </span>
-                    <Link to={`/persons/${rel.relatedPersonId}`}
-                      className="text-sm font-semibold hover:underline transition-colors"
-                      style={{ color: 'var(--text-primary)' }}>
-                      {rel.relatedPersonName}
-                    </Link>
-                    {rel.notes && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>— {rel.notes}</span>}
-                    {rel.isReverse && (
-                      <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>(diğer kişi tarafından tanımlı)</span>
-                    )}
-                  </div>
-                  {!rel.isReverse && (
-                    <button onClick={() => handleRemoveRel(rel.id)}
-                      className="text-xs text-red-500 hover:text-red-600 ml-4 shrink-0 font-medium">Sil</button>
+                  {editingRelId === rel.id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">İlişki Türü</label>
+                          <select value={editRelForm.relationshipType}
+                            onChange={e => setEditRelForm(f => ({ ...f, relationshipType: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                            {RELATIONSHIP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Başlangıç Tarihi *</label>
+                          <input type="date" value={editRelForm.startDate}
+                            onChange={e => setEditRelForm(f => ({ ...f, startDate: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Bitiş Tarihi (opsiyonel)</label>
+                          <input type="date" value={editRelForm.endDate}
+                            onChange={e => setEditRelForm(f => ({ ...f, endDate: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Not</label>
+                          <input type="text" value={editRelForm.notes}
+                            onChange={e => setEditRelForm(f => ({ ...f, notes: e.target.value }))}
+                            placeholder="İsteğe bağlı not..."
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setEditingRelId(null)}
+                          className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
+                        <button onClick={() => handleSaveRel(rel.id)} disabled={savingRel || !editRelForm.startDate}
+                          className="px-3 py-1.5 text-xs bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                          {savingRel ? 'Kaydediliyor...' : 'Kaydet'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            rel.isReverse ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          }`}>
+                            {rel.relationshipType}
+                          </span>
+                          <Link to={`/persons/${rel.relatedPersonId}`}
+                            className="text-sm font-semibold hover:underline transition-colors"
+                            style={{ color: 'var(--text-primary)' }}>
+                            {rel.relatedPersonName}
+                          </Link>
+                          {rel.isReverse && (
+                            <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>(diğer kişi tarafından tanımlı)</span>
+                          )}
+                        </div>
+                        {!rel.isReverse && (
+                          <div className="flex items-center gap-3 shrink-0">
+                            <button onClick={() => handleStartEditRel(rel)}
+                              className="text-xs text-slate-500 hover:text-slate-700 font-medium">Düzenle</button>
+                            <button onClick={() => handleRemoveRel(rel.id)}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium">Sil</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                        📅 {new Date(rel.startDate).toLocaleDateString('tr-TR')}
+                        {rel.endDate && ` - ${new Date(rel.endDate).toLocaleDateString('tr-TR')}`}
+                        {!rel.endDate && ' - Devam ediyor'}
+                      </div>
+                      {rel.notes && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>📝 {rel.notes}</div>}
+                    </>
                   )}
                 </div>
               ))}
@@ -587,13 +744,29 @@ export default function PersonDetail() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-base font-semibold text-gray-700">Evraklar</h2>
-            <div>
-              <input type="file" ref={fileRef} onChange={handleUpload} className="hidden"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.zip" />
-              <button onClick={() => fileRef.current?.click()} disabled={uploadingDoc}
-                className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
-                {uploadingDoc ? 'Yükleniyor...' : '+ Evrak Yükle'}
-              </button>
+            <div className="flex items-center gap-3">
+              {docCategories.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Kategori (opsiyonel)</label>
+                  <select value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    <option value="">Kategori seçiniz...</option>
+                    {docCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">&nbsp;</label>
+                <input type="file" ref={fileRef} onChange={handleUpload} className="hidden" multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.zip" />
+                <button onClick={() => fileRef.current?.click()} disabled={uploadingDoc}
+                  className="px-4 py-2 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
+                  {uploadingDoc ? 'Yükleniyor...' : '+ Evrak Yükle'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -606,23 +779,30 @@ export default function PersonDetail() {
           ) : (
             <div className="card overflow-hidden">
               {person.documents.map(doc => (
-                <div key={doc.id} className="flex items-center justify-between px-5 py-4 gap-4"
+                <div key={doc.id} className="px-5 py-4"
                   style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-2xl shrink-0">{fileIcon(doc.contentType)}</span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{doc.fileName}</div>
-                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                        {formatBytes(doc.fileSize)} · {new Date(doc.uploadedAt).toLocaleDateString('tr-TR')} · {doc.uploadedByName}
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl shrink-0">{fileIcon(doc.contentType)}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{doc.fileName}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                          {formatBytes(doc.fileSize)} · {new Date(doc.uploadedAt).toLocaleDateString('tr-TR')} · {doc.uploadedByName}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => handleDownload(doc)} className="btn-secondary" style={{ padding: '5px 12px', fontSize: '12px' }}>İndir</button>
+                      <button onClick={() => handleDeleteDoc(doc.id)}
+                        className="text-xs px-3 py-1.5 rounded-lg transition-colors text-red-500 hover:text-red-600"
+                        style={{ border: '1px solid rgba(239,68,68,0.3)' }}>Sil</button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => handleDownload(doc)} className="btn-secondary" style={{ padding: '5px 12px', fontSize: '12px' }}>İndir</button>
-                    <button onClick={() => handleDeleteDoc(doc.id)}
-                      className="text-xs px-3 py-1.5 rounded-lg transition-colors text-red-500 hover:text-red-600"
-                      style={{ border: '1px solid rgba(239,68,68,0.3)' }}>Sil</button>
-                  </div>
+                  {doc.categoryName && (
+                    <div className="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 inline-block" style={{ color: 'var(--text-secondary)' }}>
+                      📁 {doc.categoryName}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

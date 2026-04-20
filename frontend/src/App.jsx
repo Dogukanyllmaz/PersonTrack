@@ -31,6 +31,7 @@ const ActivityLog  = lazy(() => import('./pages/ActivityLog'));
 const Monitor      = lazy(() => import('./pages/Monitor'));
 const Admin        = lazy(() => import('./pages/Admin'));
 const Profile      = lazy(() => import('./pages/Profile'));
+const PersonsPrint = lazy(() => import('./pages/PersonsPrint'));
 
 function AppRoutes() {
   return (
@@ -46,6 +47,9 @@ function AppRoutes() {
         } />
         <Route path="/persons" element={
           <PrivateRoute managerOnly><Layout><Persons /></Layout></PrivateRoute>
+        } />
+        <Route path="/persons/print" element={
+          <PrivateRoute managerOnly><PersonsPrint /></PrivateRoute>
         } />
         <Route path="/persons/:id" element={
           <PrivateRoute managerOnly><Layout><PersonDetail /></Layout></PrivateRoute>

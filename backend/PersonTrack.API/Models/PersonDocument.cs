@@ -5,6 +5,8 @@ public class PersonDocument
     public int Id { get; set; }
     public int PersonId { get; set; }
     public Person? Person { get; set; }
+    public int? CategoryId { get; set; }
+    public DocumentCategory? Category { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string StoredFileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;

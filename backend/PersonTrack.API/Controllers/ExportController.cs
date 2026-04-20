@@ -23,11 +23,11 @@ public class ExportController : ControllerBase
             .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
             .ToListAsync();
 
-        var headers = new[] { "Ad", "Soyad", "Email", "Telefon", "Görev/Unvan", "Kurum", "Doğum Tarihi", "Adres", "Notlar", "Kayıt Tarihi" };
+        var headers = new[] { "Ad", "Soyad", "Email", "Telefon", "Pozisyon", "Kurum", "Doğum Tarihi", "Adres", "Notlar", "Kayıt Tarihi" };
         var rows = persons.Select(p => new[]
         {
             p.FirstName, p.LastName, p.Email ?? "", p.Phone ?? "",
-            p.CurrentPosition ?? "", p.Organization ?? "",
+            p.Position?.Name ?? "", p.Organization ?? "",
             p.BirthDate?.ToString("dd.MM.yyyy") ?? "",
             p.Address ?? "", p.Notes ?? "",
             p.CreatedAt.ToString("dd.MM.yyyy")
